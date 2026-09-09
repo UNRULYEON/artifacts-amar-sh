@@ -1,0 +1,27 @@
+{
+  "name": "@artifacts/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@artifacts/db": "workspace:*",
+    "@effect/experimental": "^0.61.0",
+    "@effect/platform": "^0.97.2",
+    "@effect/sql": "^0.52.1",
+    "@effect/sql-d1": "^0.50.0",
+    "@effect/sql-drizzle": "^0.51.0",
+    "drizzle-orm": "^0.45.2",
+    "effect": "^3.22.2",
+    "hono": "^4.13.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.0.0",
+    "typescript": "^5.9.0"
+  }
+}

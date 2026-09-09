@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "no-console": "warn",
+    "typescript/consistent-type-imports": "error",
+    "import/no-cycle": "error",
+    "react/react-in-jsx-scope": "off"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/.wrangler/**",
+    "**/.turbo/**",
+    "**/route-tree.gen.ts",
+    "**/worker-configuration.d.ts",
+    "packages/db/migrations/**"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}
