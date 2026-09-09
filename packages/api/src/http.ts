@@ -6,12 +6,12 @@ import type { ApiEnv } from './env'
 import type { HttpFailure, StorageError } from './errors'
 import { getRuntime, type AppServices } from './runtime'
 
-// A route handler is an Effect that produces a Response. Its failure channel
-// is closed here: known failures become status codes, everything else is 500.
 export type RouteFailure = HttpFailure | ParseError | SqlError | StorageError | ConfigError
 export type Route<R = AppServices> = Effect.Effect<Response, RouteFailure, R>
 
-const json = (body: unknown, status: number) => Response.json(body, { status })
+function json(body: unknown, status: number) {
+  return Response.json(body, { status })
+}
 
 const failureToResponse = Match.type<RouteFailure>().pipe(
   Match.tag('BadRequest', (e) => Effect.succeed(json({ error: e.message }, 400))),
@@ -29,8 +29,8 @@ const failureToResponse = Match.type<RouteFailure>().pipe(
   Match.exhaustive,
 )
 
-export const run = (env: ApiEnv, route: Route): Promise<Response> =>
-  getRuntime(env).runPromise(
+export function run(env: ApiEnv, route: Route): Promise<Response> {
+  return getRuntime(env).runPromise(
     route.pipe(
       Effect.catchAll(failureToResponse),
       Effect.catchAllCause((cause) =>
@@ -40,3 +40,4 @@ export const run = (env: ApiEnv, route: Route): Promise<Response> =>
       ),
     ),
   )
+}

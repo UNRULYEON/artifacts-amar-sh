@@ -1,20 +1,16 @@
 import { SqlClient } from '@effect/sql'
 import { Config, Duration, Effect } from 'effect'
 import type { Route } from '../http'
-import { Storage } from '../services/Storage'
-
-// GET /api/health
-// Probes each binding with a cheap call and reports per-dependency status.
-// 200 when every check passes, 503 otherwise. Never throws: a failing
-// dependency is data here, not an error.
+import { Storage } from '../services/storage'
 
 type Check = { ok: true; ms: number } | { ok: false; error: string }
 
-const check = <E, R>(
+// A failed probe is data in the response, not a failure of the route.
+function check<E, R>(
   name: string,
   probe: Effect.Effect<unknown, E, R>,
-): Effect.Effect<Check, never, R> =>
-  probe.pipe(
+): Effect.Effect<Check, never, R> {
+  return probe.pipe(
     Effect.timed,
     Effect.map(([elapsed]): Check => ({ ok: true, ms: Math.round(Duration.toMillis(elapsed)) })),
     Effect.timeoutFail({ duration: '3 seconds', onTimeout: () => new Error('timeout') }),
@@ -25,6 +21,7 @@ const check = <E, R>(
     ),
     Effect.withSpan(`health.${name}`),
   )
+}
 
 const d1 = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
@@ -33,7 +30,6 @@ const d1 = Effect.gen(function* () {
 
 const r2 = Effect.gen(function* () {
   const storage = yield* Storage
-  // A miss is fine. The point is that the binding answers.
   return yield* storage.head('.healthcheck')
 })
 

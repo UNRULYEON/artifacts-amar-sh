@@ -5,13 +5,11 @@ import { health } from './routes/health'
 
 export type { ApiEnv } from './env'
 export { getRuntime, makeAppLayer, type AppServices } from './runtime'
-export { Database } from './services/Database'
-export { Storage } from './services/Storage'
-export { Bindings } from './services/Bindings'
+export { Database } from './services/database'
+export { Storage } from './services/storage'
+export { Bindings } from './services/bindings'
 export * from './errors'
 
-// Hono does routing only. Each handler runs an Effect through `run`, which
-// provides the app services and closes the error channel.
 export function createApi() {
   const app = new Hono<{ Bindings: ApiEnv }>()
 

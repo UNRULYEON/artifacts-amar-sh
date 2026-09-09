@@ -1,6 +1,6 @@
 # artifacts.amar.sh
 
-Host for CI and agent artifacts. See `PLAN.md` for the product and engineering plan.
+Host for CI and agent artifacts. See `plan.md` for the product plan and `AGENTS.md` for the working rules.
 
 ## Layout
 

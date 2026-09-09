@@ -1,9 +1,10 @@
 import { index, integer, primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
 
-// App tables from PLAN.md. Better Auth tables (user, session, account, ...)
-// are added in the auth step; `userId` columns get their foreign key then.
+// `userId` gets its foreign key when the Better Auth tables land.
 
-const timestamp = (name: string) => integer(name, { mode: 'timestamp_ms' })
+function timestamp(name: string) {
+  return integer(name, { mode: 'timestamp_ms' })
+}
 
 export const project = sqliteTable(
   'project',

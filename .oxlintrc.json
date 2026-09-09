@@ -16,7 +16,7 @@
     "**/dist/**",
     "**/.wrangler/**",
     "**/.turbo/**",
-    "**/routeTree.gen.ts",
+    "**/route-tree.gen.ts",
     "**/worker-configuration.d.ts",
     "packages/db/migrations/**"
   ],

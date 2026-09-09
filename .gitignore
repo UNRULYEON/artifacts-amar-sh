@@ -6,5 +6,5 @@ dist/
 .env
 *.local
 .DS_Store
-apps/web/src/routeTree.gen.ts
+**/route-tree.gen.ts
 apps/web/worker-configuration.d.ts

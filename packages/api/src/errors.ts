@@ -1,7 +1,6 @@
 import { Schema } from 'effect'
 
-// HTTP-shaped failures. Routes and services yield these; `http.ts` maps them
-// to responses. Anything not listed here is a defect (a bug) and becomes 500.
+// Mapped to status codes in http.ts. Anything else is a defect and becomes 500.
 
 export class BadRequest extends Schema.TaggedError<BadRequest>()('BadRequest', {
   message: Schema.String,
