@@ -1,6 +1,7 @@
 import { index, integer, primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+import { user } from './auth-schema'
 
-// `userId` gets its foreign key when the Better Auth tables land.
+export * from './auth-schema'
 
 function timestamp(name: string) {
   return integer(name, { mode: 'timestamp_ms' })
@@ -10,7 +11,9 @@ export const project = sqliteTable(
   'project',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     displayName: text('display_name'),
     ttlSeconds: integer('ttl_seconds'),
@@ -22,7 +25,9 @@ export const project = sqliteTable(
 
 export const token = sqliteTable('token', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   hash: text('hash').notNull().unique(),
   createdAt: timestamp('created_at').notNull(),
@@ -33,7 +38,9 @@ export const artifact = sqliteTable(
   'artifact',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
     projectId: text('project_id')
       .notNull()
       .references(() => project.id),
@@ -72,7 +79,9 @@ export const artifactFile = sqliteTable(
 
 export const uploadTicket = sqliteTable('upload_ticket', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
   projectId: text('project_id')
     .notNull()
     .references(() => project.id),
