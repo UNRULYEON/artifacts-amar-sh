@@ -1,6 +1,7 @@
 import * as D1Client from '@effect/sql-d1/D1Client'
 import { ConfigProvider, Layer, ManagedRuntime } from 'effect'
 import type { ApiEnv } from './env'
+import { Auth } from './services/auth'
 import { Bindings } from './services/bindings'
 import { Database } from './services/database'
 import { Storage } from './services/storage'
@@ -13,8 +14,10 @@ export function makeAppLayer(env: ApiEnv) {
       new Map(Object.entries(env).filter((e): e is [string, string] => typeof e[1] === 'string')),
     ),
   )
+  const database = Database.layer.pipe(Layer.provide(sql))
   return Layer.mergeAll(
-    Database.layer.pipe(Layer.provide(sql)),
+    Auth.Default.pipe(Layer.provide(database)),
+    database,
     sql,
     Storage.Default.pipe(Layer.provide(bindings)),
     bindings,

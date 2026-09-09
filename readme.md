@@ -55,6 +55,23 @@ Secrets, on the repo or on the `production` environment:
 | `CLOUDFLARE_API_TOKEN`  | API token with Workers Scripts, D1, and R2 edit rights on the account, plus Zone read on `amar.sh` for the custom domain. |
 | `CLOUDFLARE_ACCOUNT_ID` | The account id from the Cloudflare dashboard.                                                                             |
 
+## Auth
+
+GitHub login through Better Auth. Only the GitHub account in `OWNER_GITHUB_ID` can sign up; every other account gets "Sign up is closed."
+
+Worker secrets, set once with `wrangler secret put <NAME>` from `apps/web`:
+
+| Secret                 | What                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`   | Random string, at least 32 bytes. `openssl rand -base64 32`                     |
+| `GITHUB_CLIENT_ID`     | GitHub OAuth app, callback `https://artifacts.amar.sh/api/auth/callback/github` |
+| `GITHUB_CLIENT_SECRET` | Same app                                                                        |
+| `OWNER_GITHUB_ID`      | Numeric GitHub user id. `gh api user --jq .id`                                  |
+
+Local dev reads the same names from `apps/web/.dev.vars`. Use a second GitHub OAuth app with callback `http://localhost:3000/api/auth/callback/github`, and run the dev server on port 3000 because Better Auth only trusts `APP_URL` as the origin.
+
+Routes: `/api/auth/*` is Better Auth, `GET /api/me` returns the signed-in user or `401`, `/login` and `/` are the UI.
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.
