@@ -1,0 +1,98 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+  workflow_dispatch:
+    inputs:
+      skip_checks:
+        description: Emergency deploy. Skips the checks.
+        type: boolean
+        default: false
+      reason:
+        description: Why you deploy by hand.
+        type: string
+        required: true
+
+jobs:
+  ci:
+    name: ci
+    if: ${{ !inputs.skip_checks }}
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: ci
+    if: ${{ !cancelled() && (needs.ci.result == 'success' || inputs.skip_checks) }}
+    environment: production
+
+    # Never let two deploys of main overlap.
+    concurrency:
+      group: deploy-main
+      cancel-in-progress: false
+
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      # The reason is free text, so it goes through the environment.
+      - name: Record the reason
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          REASON: ${{ inputs.reason }}
+        run: |
+          if [ -z "$(echo "$REASON" | tr -d '[:space:]')" ]; then
+            echo "::error::A manual deploy needs a reason."
+            exit 1
+          fi
+          echo "Manual deploy: $REASON" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Restore node_modules
+        id: cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('bun.lock', 'package.json') }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bun install --frozen-lockfile
+
+      # The Vite Cloudflare plugin writes a redirect that makes `wrangler
+      # deploy` use the built config, so build and deploy stay in one job.
+      - name: Build
+        run: bun run build
+
+      - name: Apply D1 migrations
+        working-directory: apps/web
+        run: bunx wrangler d1 migrations apply artifacts --remote
+
+      - name: Deploy Worker
+        working-directory: apps/web
+        run: bunx wrangler deploy --var GIT_SHA:${{ github.sha }}
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 12); do
+            body=$(curl -sf https://artifacts.amar.sh/api/health) \
+              && echo "$body" | grep -q "\"version\":\"${{ github.sha }}\"" \
+              && { echo "$body" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+            sleep 5
+          done
+          echo "::error::health check did not report the new version"
+          exit 1

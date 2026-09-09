@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "artifacts",
+  "main": "./src/server.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    "APP_URL": "https://artifacts.amar.sh",
+    // Overridden on deploy with --var GIT_SHA:<commit>.
+    "GIT_SHA": "dev",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "artifacts",
+      // Replace with the id from `wrangler d1 create artifacts`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../packages/db/migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "artifacts",
+    },
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
+  "routes": [{ "pattern": "artifacts.amar.sh", "custom_domain": true }],
+}

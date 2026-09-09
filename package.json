@@ -1,0 +1,29 @@
+{
+  "name": "artifacts-amar-sh",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "deploy": "turbo run deploy",
+    "db:generate": "turbo run generate --filter=@artifacts/db",
+    "db:migrate:local": "bun run --filter web migrate:local",
+    "db:migrate": "bun run --filter web migrate",
+    "test": "turbo run test",
+    "lint": "oxlint",
+    "format": "oxfmt --check",
+    "format:write": "oxfmt"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "turbo": "^2",
+    "typescript": "^5.9.0"
+  },
+  "packageManager": "bun@1.3.9"
+}
