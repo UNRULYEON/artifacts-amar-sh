@@ -14,8 +14,7 @@
     {
       "binding": "DB",
       "database_name": "artifacts",
-      // Replace with the id from `wrangler d1 create artifacts`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "1977407e-4888-4d78-90d1-3a7949af4387",
       "migrations_dir": "../../packages/db/migrations",
     },
   ],
