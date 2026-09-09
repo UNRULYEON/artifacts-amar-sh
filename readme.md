@@ -57,15 +57,10 @@ Secrets, on the repo or on the `production` environment:
 
 ## Health
 
-`GET /api/health` probes D1 and R2 and returns `200` or `503`:
+`GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.
 
 ```json
-{
-  "ok": true,
-  "version": "<git sha>",
-  "time": "...",
-  "checks": { "d1": { "ok": true, "ms": 3 }, "r2": { "ok": true, "ms": 5 } }
-}
+{ "ok": true, "version": "<git sha>", "time": "..." }
 ```
 
 Local dev needs no Cloudflare account. Miniflare emulates D1 and R2 under `apps/web/.wrangler/`.
