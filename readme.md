@@ -37,6 +37,8 @@ bunx wrangler d1 create artifacts      # paste the id into wrangler.jsonc databa
 bunx wrangler r2 bucket create artifacts
 ```
 
+Both exist already for this repo. The D1 id in `wrangler.jsonc` is the real one.
+
 ## CI and CD
 
 Two workflows in `.github/workflows`:
