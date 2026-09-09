@@ -27,8 +27,9 @@ function makeInstance({ db, appUrl, secret, github, ownerGithubId }: AuthOptions
     trustedOrigins: [appUrl],
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     user: {
+      // input:false would drop the value that mapProfileToUser sets.
       additionalFields: {
-        githubId: { type: 'string', required: true, input: false },
+        githubId: { type: 'string', required: true },
       },
     },
     socialProviders: {
@@ -45,6 +46,13 @@ function makeInstance({ db, appUrl, secret, github, ownerGithubId }: AuthOptions
         create: {
           async before(user) {
             assertOwner(user.githubId, ownerGithubId)
+          },
+        },
+        update: {
+          async before(data) {
+            if ('githubId' in data) {
+              throw new APIError('FORBIDDEN', { message: 'githubId cannot change.' })
+            }
           },
         },
       },

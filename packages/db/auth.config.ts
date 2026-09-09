@@ -6,7 +6,7 @@ export const auth = betterAuth({
   database: drizzleAdapter({} as never, { provider: 'sqlite' }),
   user: {
     additionalFields: {
-      githubId: { type: 'string', required: true, input: false },
+      githubId: { type: 'string', required: true },
     },
   },
 })
