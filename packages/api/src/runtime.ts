@@ -10,6 +10,7 @@ import { Retention } from './services/retention'
 import { SettingsService } from './services/settings'
 import { Signer } from './services/signer'
 import { Storage } from './services/storage'
+import { Tickets } from './services/tickets'
 import { Tokens } from './services/tokens'
 
 export function makeAppLayer(env: ApiEnv) {
@@ -22,10 +23,12 @@ export function makeAppLayer(env: ApiEnv) {
   )
   const database = Database.layer.pipe(Layer.provide(sql))
   const storage = Storage.Default.pipe(Layer.provide(bindings))
+  const projects = Projects.Default.pipe(Layer.provide(database))
   return Layer.mergeAll(
+    Tickets.Default.pipe(Layer.provide(Layer.merge(database, projects))),
     Artifacts.Default.pipe(Layer.provide(Layer.merge(database, storage))),
     Auth.Default.pipe(Layer.provide(database)),
-    Projects.Default.pipe(Layer.provide(database)),
+    projects,
     Tokens.Default.pipe(Layer.provide(database)),
     Signer.Default,
     SettingsService.Default.pipe(Layer.provide(database)),

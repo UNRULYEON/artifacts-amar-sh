@@ -11,7 +11,7 @@ import { health } from './routes/health'
 import { createProject, deleteProject, listProjects, updateProject } from './routes/projects'
 import { getSettings, updateSettings } from './routes/settings'
 import { createToken, listTokens, revokeToken } from './routes/tokens'
-import { upload } from './routes/upload'
+import { createUploadTicket, upload, uploadWithTicket } from './routes/upload'
 
 export type { ApiEnv } from './env'
 export { getRuntime, makeAppLayer, type AppServices } from './runtime'
@@ -24,6 +24,7 @@ export { Artifacts, type ArtifactSummary } from './services/artifacts'
 export { Signer } from './services/signer'
 export { SettingsService, type Settings } from './services/settings'
 export { Retention, type SweepResult } from './services/retention'
+export { Tickets } from './services/tickets'
 export { Bindings } from './services/bindings'
 export * from './errors'
 
@@ -53,6 +54,8 @@ export function createApi() {
   )
   app.delete('/api/artifacts/:id', (c) => run(c.env, deleteArtifact(c.req.raw, c.req.param('id'))))
   app.post('/api/upload', (c) => run(c.env, upload(c.req.raw)))
+  app.post('/api/upload-tickets', (c) => run(c.env, createUploadTicket(c.req.raw)))
+  app.put('/u/:ticket', (c) => run(c.env, uploadWithTicket(c.req.raw, c.req.param('ticket'))))
   app.get('/r/:id/:token/*', (c) => {
     const { id, token } = c.req.param()
     const prefix = `/r/${id}/${token}/`

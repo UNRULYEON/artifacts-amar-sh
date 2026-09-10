@@ -93,6 +93,8 @@ export const uploadTicket = sqliteTable('upload_ticket', {
     .references(() => project.id),
   name: text('name').notNull(),
   ttlSeconds: integer('ttl_seconds'),
+  // Token id or 'mcp': becomes the artifact's uploadedBy.
+  createdBy: text('created_by'),
   expiresAt: timestamp('expires_at').notNull(),
   usedAt: timestamp('used_at'),
 })
