@@ -1,4 +1,5 @@
-import { index, integer, primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { user } from './auth-schema'
 
 export * from './auth-schema'
@@ -20,7 +21,12 @@ export const project = sqliteTable(
     createdAt: timestamp('created_at').notNull(),
     deletedAt: timestamp('deleted_at'),
   },
-  (t) => [unique('project_user_name').on(t.userId, t.name)],
+  // Partial so a deleted project frees its slug.
+  (t) => [
+    uniqueIndex('project_user_name')
+      .on(t.userId, t.name)
+      .where(sql`deleted_at IS NULL`),
+  ],
 )
 
 export const token = sqliteTable('token', {
