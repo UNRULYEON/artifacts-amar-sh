@@ -166,6 +166,24 @@ curl "http://localhost:3000/cdn-cgi/handler/scheduled?cron=*/15+*+*+*+*"
 
 `/settings` shows usage (live artifact count and bytes) and the default retention. `GET /api/settings` returns `{ defaultTtlSeconds, usage }`; `PATCH /api/settings` takes `{ defaultTtlSeconds }`, `null` to reset.
 
+## MCP
+
+Agents connect to `https://artifacts.amar.sh/mcp` (streamable HTTP, `POST` only) and sign in once with OAuth. This app is the OAuth server: Better Auth with the `jwt`, `mcp`, and `cimd` plugins. Nothing to configure in a client beyond the URL.
+
+- Discovery: `/.well-known/oauth-protected-resource/mcp` names the authorization server `https://artifacts.amar.sh/api/auth`, whose metadata lives at `/.well-known/oauth-authorization-server/api/auth`. JWKS is `/api/auth/jwks`.
+- Client registration is CIMD only: the client's `client_id` is the HTTPS URL of its metadata document. Dynamic Client Registration stays off. `MCP_CLIENT_ORIGINS` (optional var, comma-separated origins) restricts which metadata hosts may register; unset allows any HTTPS document.
+- Flow: the client is sent to `/login`, GitHub signs you in, `/consent` asks once, and the client gets a token bound to the `/mcp` resource. Tokens act as you across every project.
+- Tools: `discover` (how it works, limits, projects), `get_upload_url` (a ten minute one-use `PUT` URL plus a ready `curl`, for files up to 100MB), and `upload` (inline base64, up to 2MB). Uploads from MCP show as `MCP` in the dashboard.
+- CORS is open on `/mcp`, `/.well-known/*`, `/api/auth/oauth2/*`, and `/api/auth/jwks` for browser-based clients.
+
+Claude Code:
+
+```sh
+claude mcp add --transport http artifacts https://artifacts.amar.sh/mcp
+```
+
+Schema: the plugin tables in `packages/db/src/auth-schema.ts` come from `bun run generate:auth` (in `packages/db`), which calls the Better Auth generator directly because the CLI's plugin init needs a live database. The four core tables are kept by hand so their SQL defaults survive.
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.

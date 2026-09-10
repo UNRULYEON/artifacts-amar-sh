@@ -1,5 +1,6 @@
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 export const MAX_ZIP_ENTRIES = 5000
+export const MCP_INLINE_MAX_BYTES = 2 * 1024 * 1024
 export const MAX_CENTRAL_DIRECTORY_BYTES = 8 * 1024 * 1024
 export const MIN_TTL_SECONDS = 60
 export const DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60

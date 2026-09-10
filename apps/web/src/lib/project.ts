@@ -9,7 +9,7 @@ export interface ProjectView {
 }
 
 export const getProject = createServerFn({ method: 'GET' })
-  .inputValidator((id: string) => id)
+  .validator((id: string) => id)
   .handler(async ({ data: id }): Promise<ProjectView | null> => {
     const { readProject } = await import('./project.server')
     const request = getRequest()

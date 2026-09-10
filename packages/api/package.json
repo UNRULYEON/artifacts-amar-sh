@@ -11,15 +11,19 @@
   },
   "dependencies": {
     "@artifacts/db": "workspace:*",
+    "@better-auth/cimd": "1.7.4",
+    "@better-auth/mcp": "1.7.4",
     "@effect/experimental": "^0.61.0",
     "@effect/platform": "^0.97.2",
     "@effect/sql": "^0.52.1",
     "@effect/sql-d1": "^0.50.0",
     "@effect/sql-drizzle": "^0.51.0",
-    "better-auth": "^1.7.3",
+    "@modelcontextprotocol/server": "2.0.0",
+    "better-auth": "1.7.4",
     "drizzle-orm": "^0.45.2",
     "effect": "^3.22.2",
-    "hono": "^4.13.7"
+    "hono": "^4.13.7",
+    "zod": "^4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.0.0",

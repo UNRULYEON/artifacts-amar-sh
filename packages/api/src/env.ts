@@ -7,4 +7,5 @@ export interface ApiEnv {
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
   OWNER_GITHUB_ID?: string
+  MCP_CLIENT_ORIGINS?: string
 }

@@ -1,5 +1,6 @@
 import { Cause, Effect } from 'effect'
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import type { ApiEnv } from './env'
 import { run } from './http'
 import { getRuntime } from './runtime'
@@ -9,6 +10,7 @@ import { deleteArtifact, listArtifacts } from './routes/artifacts'
 import { serveBytes } from './routes/bytes'
 import { health } from './routes/health'
 import { createProject, deleteProject, listProjects, updateProject } from './routes/projects'
+import { mcpRoute } from './routes/mcp'
 import { getSettings, updateSettings } from './routes/settings'
 import { createToken, listTokens, revokeToken } from './routes/tokens'
 import { createUploadTicket, upload, uploadWithTicket } from './routes/upload'
@@ -42,8 +44,33 @@ export function sweep(env: ApiEnv): Promise<SweepResult | null> {
 export function createApi() {
   const app = new Hono<{ Bindings: ApiEnv }>()
 
+  // Browser-based MCP clients need CORS on discovery, the OAuth endpoints, and the MCP route.
+  const open = cors({
+    origin: '*',
+    allowMethods: ['GET', 'HEAD', 'POST', 'OPTIONS'],
+    allowHeaders: [
+      'Authorization',
+      'Content-Type',
+      'Mcp-Protocol-Version',
+      'Mcp-Session-Id',
+      'DPoP',
+    ],
+    exposeHeaders: ['WWW-Authenticate', 'Mcp-Session-Id'],
+  })
+  app.use('/mcp', open)
+  app.use('/.well-known/*', open)
+  app.use('/api/auth/oauth2/*', open)
+  app.use('/api/auth/jwks', open)
+
   app.get('/api/health', (c) => run(c.env, health))
   app.on(['GET', 'POST'], '/api/auth/*', (c) => run(c.env, authHandler(c.req.raw)))
+  app.on(['GET', 'HEAD'], '/.well-known/*', (c) => run(c.env, authHandler(c.req.raw)))
+  app.post('/mcp', (c) => mcpRoute(c.env, c.req.raw))
+  app.on(
+    ['GET', 'DELETE'],
+    '/mcp',
+    () => new Response('Method not allowed.', { status: 405, headers: { allow: 'POST' } }),
+  )
   app.get('/api/me', (c) => run(c.env, me(c.req.raw)))
   app.get('/api/projects', (c) => run(c.env, listProjects(c.req.raw)))
   app.post('/api/projects', (c) => run(c.env, createProject(c.req.raw)))

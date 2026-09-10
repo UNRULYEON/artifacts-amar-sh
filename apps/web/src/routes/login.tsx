@@ -18,9 +18,13 @@ export const Route = createFileRoute('/login')({
   component: Login,
 })
 
-// Only a same-origin path may be the return target.
-function safePath(value: string | undefined) {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/'
+// Only a same-origin path may be the return target. An OAuth authorize query
+// (sent here by the MCP login step) goes back to the authorize endpoint.
+function returnPath(value: string | undefined) {
+  if (value && value.startsWith('/') && !value.startsWith('//')) return value
+  const query = location.search.slice(1)
+  if (new URLSearchParams(query).has('client_id')) return `/api/auth/oauth2/authorize?${query}`
+  return '/'
 }
 
 function signIn(callbackURL: string) {
@@ -43,7 +47,7 @@ function Login() {
               Sign in failed: {error.replaceAll('_', ' ')}
             </p>
           ) : null}
-          <Button onClick={() => signIn(safePath(returnTo))} className="w-full">
+          <Button onClick={() => signIn(returnPath(returnTo))} className="w-full">
             Continue with GitHub
           </Button>
         </CardContent>
