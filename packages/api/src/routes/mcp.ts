@@ -1,4 +1,4 @@
-import { requireMcpAuth } from '@better-auth/mcp'
+import { createMcpProtectedRequestHandler } from '@better-auth/mcp'
 import { createMcpHandler, McpServer, type CallToolResult } from '@modelcontextprotocol/server'
 import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/server/validators/cf-worker'
 import { Cause, Effect } from 'effect'
@@ -168,15 +168,21 @@ export async function mcpRoute(env: ApiEnv, request: Request): Promise<Response>
   const { auth, appUrl } = await runtime.runPromise(
     Effect.flatMap(Auth, (a) => Effect.all({ auth: a.instance, appUrl: a.appUrl })),
   )
+  const { baseURL } = await auth.$context
   const origin = new URL(request.url).origin
-  const protectedHandler = requireMcpAuth(
-    auth,
+  const protectedHandler = createMcpProtectedRequestHandler(
+    {
+      issuer: baseURL,
+      audience: mcpResource(appUrl),
+      // A Worker cannot fetch its own domain, so the key set is read in-process.
+      // The verifier accepts a function here; the option is only typed as a URL.
+      jwksUrl: (() => auth.api.getJwks()) as unknown as string,
+    },
     (req, claims) => {
       const userId = typeof claims.sub === 'string' ? claims.sub : null
       if (!userId) return new Response('Token has no subject.', { status: 401 })
       return createMcpHandler(() => makeServer(runtime, userId, origin)).fetch(req)
     },
-    { resource: mcpResource(appUrl) },
   )
   return protectedHandler(request)
 }
