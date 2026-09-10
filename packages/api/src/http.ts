@@ -19,6 +19,7 @@ const failureToResponse = Match.type<RouteFailure>().pipe(
   Match.tag('Forbidden', (e) => Effect.succeed(json({ error: e.message }, 403))),
   Match.tag('NotFound', (e) => Effect.succeed(json({ error: e.message }, 404))),
   Match.tag('Conflict', (e) => Effect.succeed(json({ error: e.message }, 409))),
+  Match.tag('LengthRequired', (e) => Effect.succeed(json({ error: e.message }, 411))),
   Match.tag('PayloadTooLarge', (e) => Effect.succeed(json({ error: e.message }, 413))),
   Match.tag('ParseError', (e) =>
     Effect.succeed(json({ error: ParseResult.TreeFormatter.formatErrorSync(e) }, 400)),

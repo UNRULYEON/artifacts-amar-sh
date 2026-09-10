@@ -99,6 +99,29 @@ Named tokens for CI and runners. Manage them on `/settings`. The secret is `art_
 
 Machine routes read `Authorization: Bearer <token>` and update `lastUsedAt` on each use.
 
+## Upload
+
+```
+POST /api/upload?project=<id|name>&name=<file name>&ttl=<seconds>
+Authorization: Bearer art_...
+Content-Length: <bytes>
+```
+
+The raw file is the body. No multipart. The Worker streams it to R2, then writes the metadata to D1 and answers `201` with `{ id, url, expiresAt }`. The `url` is the viewer link on the same host.
+
+- `project` is a project id or a slug. An unknown slug creates the project.
+- `name` sets the `kind` (`png/jpg/webp/gif` image, `mp4/webm` video, `zip` bundle, `html` page, else file) and the download name.
+- `ttl` is optional and clamped to the range 60 seconds to 90 days. Without it the project TTL, then the 30 day default, applies.
+- No `Content-Length` is `411`. Over 100MB is `413`. A body that does not match the length is `400` and the bytes are dropped.
+
+Zips stay one R2 object. The Worker range-reads the central directory and stores one `artifact_file` row per entry. Rules: stored or deflate only, no Zip64, no encryption, at most 5000 entries, paths that stay inside the root. A folder that holds every entry and an `index.html` becomes `rootPath`. A zip that breaks a rule is `400` and nothing is kept.
+
+```sh
+curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" \
+  --data-binary @playwright-report.zip \
+  "https://artifacts.amar.sh/api/upload?project=web&name=playwright-report.zip"
+```
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.

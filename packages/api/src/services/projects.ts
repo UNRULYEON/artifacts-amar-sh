@@ -1,11 +1,10 @@
 import { schema } from '@artifacts/db'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 import { Effect, Schema } from 'effect'
-import { Conflict, NotFound } from '../errors'
+import { BadRequest, Conflict, NotFound } from '../errors'
 import { newId } from '../id'
+import { MAX_TTL_SECONDS, MIN_TTL_SECONDS } from '../limits'
 import { Database } from './database'
-
-export const MAX_TTL_SECONDS = 90 * 24 * 60 * 60
 
 export const Slug = Schema.String.pipe(
   Schema.maxLength(64),
@@ -16,7 +15,7 @@ export const Slug = Schema.String.pipe(
 
 export const DisplayName = Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(100))
 
-export const TtlSeconds = Schema.Int.pipe(Schema.between(60, MAX_TTL_SECONDS))
+export const TtlSeconds = Schema.Int.pipe(Schema.between(MIN_TTL_SECONDS, MAX_TTL_SECONDS))
 
 export const CreateProject = Schema.Struct({
   name: Slug,
@@ -153,6 +152,23 @@ export class Projects extends Effect.Service<Projects>()('@artifacts/api/Project
       }).pipe(Effect.withSpan('Projects.remove'))
     }
 
-    return { list, get, findByName, create, update, remove }
+    // Upload references: an id, or a slug that is created when unknown.
+    function resolve(userId: string, ref: string) {
+      return Effect.gen(function* () {
+        if (ref.startsWith('prj_')) return yield* get(userId, ref)
+        const name = yield* Schema.decodeUnknown(Slug)(ref).pipe(
+          Effect.mapError(() => new BadRequest({ message: 'Invalid project name.' })),
+        )
+        const existing = yield* findByName(userId, name)
+        if (existing) return existing
+        const rows = yield* db
+          .insert(project)
+          .values({ id: newId('prj'), userId, name, createdAt: new Date() })
+          .returning()
+        return rows[0]!
+      }).pipe(Effect.withSpan('Projects.resolve'))
+    }
+
+    return { list, get, findByName, create, update, remove, resolve }
   }),
 }) {}
