@@ -15,6 +15,7 @@ export const user = sqliteTable('user', {
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
   githubId: text('github_id').notNull(),
+  defaultTtlSeconds: integer('default_ttl_seconds'),
 })
 
 export const session = sqliteTable(

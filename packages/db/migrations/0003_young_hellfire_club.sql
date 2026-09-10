@@ -1,0 +1,1 @@
+ALTER TABLE `user` ADD `default_ttl_seconds` integer;

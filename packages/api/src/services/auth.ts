@@ -36,6 +36,7 @@ function makeInstance({ db, appUrl, secret, github, ownerGithubId }: AuthOptions
       // input:false would drop the value that mapProfileToUser sets.
       additionalFields: {
         githubId: { type: 'string', required: true },
+        defaultTtlSeconds: { type: 'number', required: false, input: false },
       },
     },
     socialProviders: {

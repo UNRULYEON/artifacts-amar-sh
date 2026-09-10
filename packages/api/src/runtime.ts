@@ -6,6 +6,8 @@ import { Auth } from './services/auth'
 import { Bindings } from './services/bindings'
 import { Database } from './services/database'
 import { Projects } from './services/projects'
+import { Retention } from './services/retention'
+import { SettingsService } from './services/settings'
 import { Signer } from './services/signer'
 import { Storage } from './services/storage'
 import { Tokens } from './services/tokens'
@@ -26,6 +28,8 @@ export function makeAppLayer(env: ApiEnv) {
     Projects.Default.pipe(Layer.provide(database)),
     Tokens.Default.pipe(Layer.provide(database)),
     Signer.Default,
+    SettingsService.Default.pipe(Layer.provide(database)),
+    Retention.Default.pipe(Layer.provide(Layer.merge(database, storage))),
     database,
     sql,
     storage,

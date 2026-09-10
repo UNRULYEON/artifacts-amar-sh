@@ -137,6 +137,20 @@ Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends
 
 Every `/r/*` response carries `Content-Security-Policy: sandbox allow-scripts` and `nosniff`, so report scripts run in an opaque origin and cannot reach cookies, the dashboard, or the API. `Range` requests get `206` on single files and on stored zip entries. Deflated entries are inflated with `DecompressionStream` on the fly. Paths inside a bundle are relative to `rootPath`. Add `?download` for an attachment disposition.
 
+## Retention and settings
+
+Every upload gets `expiresAt` from the request `ttl`, else the project TTL, else the user default, else 30 days, clamped to 60 seconds to 90 days. Deleting from the dashboard only sets `deletedAt`.
+
+The cron (`*/15 * * * *`, see `wrangler.jsonc`) runs `sweep`: it picks artifacts that are expired or soft-deleted in batches of 100, deletes the R2 objects by key, then the `artifact_file` rows, then the `artifact` rows, up to 20 batches per run. It also drops soft-deleted projects that have no artifacts left and expired upload tickets. The run is logged as `sweep done` with counts. A failure is logged and never thrown.
+
+Locally, trigger it with the dev server running:
+
+```sh
+curl "http://localhost:3000/cdn-cgi/handler/scheduled?cron=*/15+*+*+*+*"
+```
+
+`/settings` shows usage (live artifact count and bytes) and the default retention. `GET /api/settings` returns `{ defaultTtlSeconds, usage }`; `PATCH /api/settings` takes `{ defaultTtlSeconds }`, `null` to reset.
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.
