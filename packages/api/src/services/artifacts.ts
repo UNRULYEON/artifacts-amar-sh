@@ -1,5 +1,5 @@
 import { schema } from '@artifacts/db'
-import { and, asc, eq, gt, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, isNull } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { BadRequest, NotFound } from '../errors'
 import { newId } from '../id'
@@ -16,7 +16,7 @@ import {
 import { Database } from './database'
 import { Storage } from './storage'
 
-const { artifact, artifactFile } = schema
+const { artifact, artifactFile, token } = schema
 
 // D1 allows 100 bound parameters per statement; artifact_file has 7 columns.
 const FILE_ROWS_PER_INSERT = 14
@@ -33,6 +33,16 @@ export interface UploadInput {
 
 export type ArtifactRow = typeof artifact.$inferSelect
 export type ArtifactFileRow = typeof artifactFile.$inferSelect
+
+export interface ArtifactSummary {
+  id: string
+  name: string
+  kind: ArtifactRow['kind']
+  size: number
+  uploadedBy: string
+  createdAt: string
+  expiresAt: string
+}
 
 export interface Uploaded {
   id: string
@@ -171,6 +181,51 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
         .pipe(Effect.map((rows) => rows[0] ?? null))
     }
 
-    return { upload, get, files, file }
+    // Newest first, live only. The uploader label resolves the token name.
+    function listByProject(projectId: string) {
+      return db
+        .select({ row: artifact, tokenName: token.name })
+        .from(artifact)
+        .leftJoin(token, eq(token.id, artifact.uploadedBy))
+        .where(
+          and(
+            eq(artifact.projectId, projectId),
+            isNull(artifact.deletedAt),
+            gt(artifact.expiresAt, new Date()),
+          ),
+        )
+        .orderBy(desc(artifact.createdAt))
+        .pipe(
+          Effect.map((rows) =>
+            rows.map(({ row, tokenName }): ArtifactSummary => ({
+              id: row.id,
+              name: row.name,
+              kind: row.kind,
+              size: row.size,
+              uploadedBy: tokenName ?? (row.uploadedBy === 'mcp' ? 'MCP' : 'revoked token'),
+              createdAt: row.createdAt.toISOString(),
+              expiresAt: row.expiresAt.toISOString(),
+            })),
+          ),
+          Effect.withSpan('Artifacts.listByProject'),
+        )
+    }
+
+    // Soft delete. The cron removes the bytes.
+    function remove(userId: string, id: string) {
+      return db
+        .update(artifact)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(artifact.id, id), eq(artifact.userId, userId), isNull(artifact.deletedAt)))
+        .returning({ id: artifact.id })
+        .pipe(
+          Effect.flatMap((rows) =>
+            rows.length === 0 ? new NotFound({ message: 'Artifact not found.' }) : Effect.void,
+          ),
+          Effect.withSpan('Artifacts.remove'),
+        )
+    }
+
+    return { upload, get, files, file, listByProject, remove }
   }),
 }) {}

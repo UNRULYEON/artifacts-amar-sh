@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { ApiEnv } from './env'
 import { run } from './http'
 import { authHandler, me } from './routes/auth'
+import { deleteArtifact, listArtifacts } from './routes/artifacts'
 import { serveBytes } from './routes/bytes'
 import { health } from './routes/health'
 import { createProject, deleteProject, listProjects, updateProject } from './routes/projects'
@@ -15,7 +16,7 @@ export { Storage } from './services/storage'
 export { Auth, type Session } from './services/auth'
 export { Projects, type Project } from './services/projects'
 export { Tokens, type Token } from './services/tokens'
-export { Artifacts } from './services/artifacts'
+export { Artifacts, type ArtifactSummary } from './services/artifacts'
 export { Signer } from './services/signer'
 export { Bindings } from './services/bindings'
 export * from './errors'
@@ -30,6 +31,10 @@ export function createApi() {
   app.post('/api/projects', (c) => run(c.env, createProject(c.req.raw)))
   app.patch('/api/projects/:id', (c) => run(c.env, updateProject(c.req.raw, c.req.param('id'))))
   app.delete('/api/projects/:id', (c) => run(c.env, deleteProject(c.req.raw, c.req.param('id'))))
+  app.get('/api/projects/:id/artifacts', (c) =>
+    run(c.env, listArtifacts(c.req.raw, c.req.param('id'))),
+  )
+  app.delete('/api/artifacts/:id', (c) => run(c.env, deleteArtifact(c.req.raw, c.req.param('id'))))
   app.post('/api/upload', (c) => run(c.env, upload(c.req.raw)))
   app.get('/r/:id/:token/*', (c) => {
     const { id, token } = c.req.param()

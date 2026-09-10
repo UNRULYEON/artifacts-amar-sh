@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { MoreHorizontalIcon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState, type FormEvent } from 'react'
@@ -155,7 +156,13 @@ function ProjectRow({ project }: { project: Project }) {
   return (
     <li className="flex items-center gap-4 px-4 py-3">
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium">{project.displayName ?? project.name}</span>
+        <Link
+          to="/projects/$id"
+          params={{ id: project.id }}
+          className="truncate text-sm font-medium hover:underline"
+        >
+          {project.displayName ?? project.name}
+        </Link>
         <span className="truncate font-mono text-xs text-muted-foreground">{project.name}</span>
       </div>
       <span className="hidden text-xs text-muted-foreground sm:block">
