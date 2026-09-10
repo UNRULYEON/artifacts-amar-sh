@@ -1,6 +1,6 @@
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ComputerIcon, Moon02Icon, Sun03Icon } from '@hugeicons/core-free-icons'
+import { ComputerIcon, Moon02Icon, Settings01Icon, Sun03Icon } from '@hugeicons/core-free-icons'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import {
   DropdownMenu,
@@ -25,7 +25,7 @@ const themeOptions = [
   { value: 'system', label: 'System', icon: ComputerIcon },
 ] satisfies { value: Theme; label: string; icon: typeof Sun03Icon }[]
 
-function initials(name: string) {
+export function initials(name: string) {
   return name
     .split(/\s+/)
     .map((part) => part[0] ?? '')
@@ -77,6 +77,12 @@ export function UserMenu({ user }: UserMenuProps) {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/settings">
+            <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
+            Settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={signOut}>Log out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

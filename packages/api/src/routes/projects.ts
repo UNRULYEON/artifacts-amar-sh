@@ -1,21 +1,7 @@
-import { Effect, Schema } from 'effect'
-import { BadRequest } from '../errors'
+import { Effect } from 'effect'
 import type { Route } from '../http'
-import { Auth } from '../services/auth'
 import { CreateProject, Projects, UpdateProject } from '../services/projects'
-
-function jsonBody<A, I>(request: Request, schema: Schema.Schema<A, I>) {
-  return Effect.tryPromise({
-    try: () => request.json(),
-    catch: () => new BadRequest({ message: 'Body must be JSON.' }),
-  }).pipe(Effect.flatMap(Schema.decodeUnknown(schema)))
-}
-
-function currentUserId(request: Request) {
-  return Effect.flatMap(Auth, (auth) => auth.requireSession(request)).pipe(
-    Effect.map((session) => session.user.id),
-  )
-}
+import { currentUserId, jsonBody } from './helpers'
 
 export function listProjects(request: Request): Route {
   return Effect.gen(function* () {

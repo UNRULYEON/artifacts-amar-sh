@@ -6,6 +6,7 @@ import { Bindings } from './services/bindings'
 import { Database } from './services/database'
 import { Projects } from './services/projects'
 import { Storage } from './services/storage'
+import { Tokens } from './services/tokens'
 
 export function makeAppLayer(env: ApiEnv) {
   const bindings = Bindings.layer(env)
@@ -19,6 +20,7 @@ export function makeAppLayer(env: ApiEnv) {
   return Layer.mergeAll(
     Auth.Default.pipe(Layer.provide(database)),
     Projects.Default.pipe(Layer.provide(database)),
+    Tokens.Default.pipe(Layer.provide(database)),
     database,
     sql,
     Storage.Default.pipe(Layer.provide(bindings)),
