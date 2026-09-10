@@ -14,6 +14,12 @@ interface AuthOptions {
   ownerGithubId: string
 }
 
+// CSRF guard for cookie-authenticated mutations. Browsers always send Origin on
+// these, and the origin must be the host that served the page.
+export function isSameOrigin(request: Request) {
+  return request.headers.get('origin') === new URL(request.url).origin
+}
+
 export function assertOwner(githubId: unknown, ownerGithubId: string) {
   if (githubId !== ownerGithubId) {
     throw new APIError('FORBIDDEN', { message: 'Sign up is closed.' })
@@ -111,11 +117,8 @@ export class Auth extends Effect.Service<Auth>()('@artifacts/api/Auth', {
       return Effect.gen(function* () {
         const current = yield* session(request.headers)
         if (!current) return yield* new Unauthorized({ message: 'Sign in required.' })
-        if (request.method !== 'GET' && request.method !== 'HEAD') {
-          const { appUrl } = yield* readConfig
-          if (request.headers.get('origin') !== appUrl) {
-            return yield* new Forbidden({ message: 'Bad origin.' })
-          }
+        if (request.method !== 'GET' && request.method !== 'HEAD' && !isSameOrigin(request)) {
+          return yield* new Forbidden({ message: 'Bad origin.' })
         }
         return current
       })

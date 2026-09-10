@@ -76,7 +76,7 @@ Routes: `/api/auth/*` is Better Auth, `GET /api/me` returns the signed-in user o
 
 Projects live under the signed-in user. The `name` is a slug (`[a-z0-9]` with single dashes, max 64) and is what uploads reference. Deleting a project soft-deletes it and its artifacts; the slug is free again at once.
 
-All routes need the session cookie. Mutations also need an `Origin` header equal to `APP_URL`.
+All routes need the session cookie. Mutations also need an `Origin` header that matches the origin of the request URL, which a browser sends by itself.
 
 | Route                      | What                                                                   |
 | -------------------------- | ---------------------------------------------------------------------- |
