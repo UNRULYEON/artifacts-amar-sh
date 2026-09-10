@@ -1,9 +1,13 @@
 import { schema } from '@artifacts/db'
+import { cimd } from '@better-auth/cimd'
+import { mcp } from '@better-auth/mcp'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError } from 'better-auth/api'
-import { Config, Effect, Redacted } from 'effect'
+import { jwt } from 'better-auth/plugins'
+import { Config, Effect, Option, Redacted } from 'effect'
 import { Forbidden, Unauthorized } from '../errors'
+import { fetchClientMetadata, makeOriginAllowlist } from './cimd-fetch'
 import { Database } from './database'
 
 interface AuthOptions {
@@ -12,6 +16,11 @@ interface AuthOptions {
   secret: string
   github: { clientId: string; clientSecret: string }
   ownerGithubId: string
+  mcpClientOrigins: string | undefined
+}
+
+export function mcpResource(appUrl: string) {
+  return `${appUrl}/mcp`
 }
 
 // CSRF guard for cookie-authenticated mutations. Browsers always send Origin on
@@ -26,7 +35,15 @@ export function assertOwner(githubId: unknown, ownerGithubId: string) {
   }
 }
 
-function makeInstance({ db, appUrl, secret, github, ownerGithubId }: AuthOptions) {
+function makeInstance({
+  db,
+  appUrl,
+  secret,
+  github,
+  ownerGithubId,
+  mcpClientOrigins,
+}: AuthOptions) {
+  const isMetadataDocumentUrlAllowed = makeOriginAllowlist(mcpClientOrigins)
   return betterAuth({
     baseURL: appUrl,
     secret,
@@ -65,6 +82,16 @@ function makeInstance({ db, appUrl, secret, github, ownerGithubId }: AuthOptions
       },
     },
     onAPIError: { errorURL: '/login' },
+    // MCP: this app is the OAuth server. mcp() wraps oauthProvider(); do not add both.
+    plugins: [
+      jwt(),
+      mcp({ loginPage: '/login', consentPage: '/consent', resource: mcpResource(appUrl) }),
+      cimd({
+        fetchClientMetadataResource: fetchClientMetadata,
+        metadataProfile: 'mcp-2026-07-28',
+        isMetadataDocumentUrlAllowed,
+      }),
+    ],
   })
 }
 
@@ -79,6 +106,7 @@ const readConfig = Config.all({
     clientSecret: Config.redacted('GITHUB_CLIENT_SECRET'),
   }),
   ownerGithubId: Config.string('OWNER_GITHUB_ID'),
+  mcpClientOrigins: Config.string('MCP_CLIENT_ORIGINS').pipe(Config.option),
 })
 
 export class Auth extends Effect.Service<Auth>()('@artifacts/api/Auth', {
@@ -96,6 +124,7 @@ export class Auth extends Effect.Service<Auth>()('@artifacts/api/Auth', {
             clientSecret: Redacted.value(c.github.clientSecret),
           },
           ownerGithubId: c.ownerGithubId,
+          mcpClientOrigins: Option.getOrUndefined(c.mcpClientOrigins),
         }),
       ),
     )
@@ -125,6 +154,12 @@ export class Auth extends Effect.Service<Auth>()('@artifacts/api/Auth', {
       })
     }
 
-    return { handle, session, requireSession }
+    return {
+      handle,
+      session,
+      requireSession,
+      instance,
+      appUrl: Effect.map(readConfig, (c) => c.appUrl),
+    }
   }),
 }) {}

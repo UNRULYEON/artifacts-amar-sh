@@ -16,7 +16,7 @@ export interface ArtifactView {
 }
 
 export const getArtifact = createServerFn({ method: 'GET' })
-  .inputValidator((id: string) => id)
+  .validator((id: string) => id)
   .handler(async ({ data: id }): Promise<ArtifactView | null> => {
     const { readArtifact } = await import('./artifacts.server')
     return readArtifact(getRequest().headers, id)

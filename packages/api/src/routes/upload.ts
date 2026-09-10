@@ -32,7 +32,7 @@ export function contentLength(request: Request) {
   return Effect.succeed(size)
 }
 
-interface UploadTarget {
+export interface UploadTarget {
   userId: string
   projectId: string
   projectTtlSeconds: number | null
@@ -42,7 +42,9 @@ interface UploadTarget {
 }
 
 // Request, project, user default, then 30 days.
-function resolveTtl(target: UploadTarget) {
+export function resolveTtl(
+  target: Pick<UploadTarget, 'userId' | 'projectTtlSeconds' | 'ttlSeconds'>,
+) {
   return Effect.gen(function* () {
     if (target.ttlSeconds !== undefined) return target.ttlSeconds
     if (target.projectTtlSeconds !== null) return target.projectTtlSeconds
