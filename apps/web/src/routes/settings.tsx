@@ -1,12 +1,14 @@
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
+import { RetentionForm } from '#/components/retention-form'
 import { CreateTokenButton, TokenList } from '#/components/tokens'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import { Button } from '#/components/ui/button'
 import { UserMenu, initials } from '#/components/user-menu'
 import { getSession } from '#/lib/session'
-import { getTokens } from '#/lib/tokens'
+import { formatBytes } from '#/lib/format'
+import { getSettingsView } from '#/lib/settings'
 
 export const Route = createFileRoute('/settings')({
   async beforeLoad() {
@@ -14,14 +16,18 @@ export const Route = createFileRoute('/settings')({
     if (!session) throw redirect({ to: '/login' })
     return { session }
   },
-  loader: () => getTokens(),
+  async loader() {
+    const view = await getSettingsView()
+    if (!view) throw redirect({ to: '/login', search: { redirect: '/settings' } })
+    return view
+  },
   head: () => ({ meta: [{ title: 'Settings · Artifacts' }] }),
   component: Settings,
 })
 
 function Settings() {
   const { session } = Route.useRouteContext()
-  const tokens = Route.useLoaderData()
+  const { settings, tokens } = Route.useLoaderData()
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -50,7 +56,16 @@ function Settings() {
               {session.user.email} · GitHub
             </span>
           </div>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {settings.usage.artifacts} artifact{settings.usage.artifacts === 1 ? '' : 's'} ·{' '}
+            {formatBytes(settings.usage.bytes)}
+          </span>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-medium text-muted-foreground">Retention</h2>
+        <RetentionForm defaultTtlSeconds={settings.defaultTtlSeconds} />
       </section>
 
       <section className="flex flex-col gap-4">

@@ -1,11 +1,15 @@
+import { Cause, Effect } from 'effect'
 import { Hono } from 'hono'
 import type { ApiEnv } from './env'
 import { run } from './http'
+import { getRuntime } from './runtime'
+import { Retention, type SweepResult } from './services/retention'
 import { authHandler, me } from './routes/auth'
 import { deleteArtifact, listArtifacts } from './routes/artifacts'
 import { serveBytes } from './routes/bytes'
 import { health } from './routes/health'
 import { createProject, deleteProject, listProjects, updateProject } from './routes/projects'
+import { getSettings, updateSettings } from './routes/settings'
 import { createToken, listTokens, revokeToken } from './routes/tokens'
 import { upload } from './routes/upload'
 
@@ -18,8 +22,21 @@ export { Projects, type Project } from './services/projects'
 export { Tokens, type Token } from './services/tokens'
 export { Artifacts, type ArtifactSummary } from './services/artifacts'
 export { Signer } from './services/signer'
+export { SettingsService, type Settings } from './services/settings'
+export { Retention, type SweepResult } from './services/retention'
 export { Bindings } from './services/bindings'
 export * from './errors'
+
+// Cron entry. Errors are logged, never thrown, so the trigger stays healthy.
+export function sweep(env: ApiEnv): Promise<SweepResult | null> {
+  return getRuntime(env).runPromise(
+    Effect.flatMap(Retention, (r) => r.sweep()).pipe(
+      Effect.catchAllCause((cause) =>
+        Effect.logError('sweep failed', Cause.pretty(cause)).pipe(Effect.as(null)),
+      ),
+    ),
+  )
+}
 
 export function createApi() {
   const app = new Hono<{ Bindings: ApiEnv }>()
@@ -42,6 +59,8 @@ export function createApi() {
     const path = new URL(c.req.url).pathname.slice(prefix.length)
     return run(c.env, serveBytes(c.req.raw, id, token, path))
   })
+  app.get('/api/settings', (c) => run(c.env, getSettings(c.req.raw)))
+  app.patch('/api/settings', (c) => run(c.env, updateSettings(c.req.raw)))
   app.get('/api/tokens', (c) => run(c.env, listTokens(c.req.raw)))
   app.post('/api/tokens', (c) => run(c.env, createToken(c.req.raw)))
   app.delete('/api/tokens/:id', (c) => run(c.env, revokeToken(c.req.raw, c.req.param('id'))))

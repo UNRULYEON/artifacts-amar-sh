@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, isNull } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { BadRequest, NotFound } from '../errors'
 import { newId } from '../id'
-import { DEFAULT_TTL_SECONDS, clampTtl } from '../limits'
+import { clampTtl } from '../limits'
 import { contentTypeFor, kindFor } from '../mime'
 import {
   EOCD_TAIL_BYTES,
@@ -23,11 +23,12 @@ const FILE_ROWS_PER_INSERT = 14
 
 export interface UploadInput {
   userId: string
-  project: { id: string; ttlSeconds: number | null }
+  projectId: string
   name: string
   size: number
   body: ReadableStream
-  ttlSeconds?: number
+  // Already resolved from request, project, and user default. Clamped here.
+  ttlSeconds: number
   uploadedBy: string
 }
 
@@ -107,7 +108,7 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
     function upload(input: UploadInput) {
       return Effect.gen(function* () {
         const id = newId('art')
-        const key = objectKey(input.userId, input.project.id, id)
+        const key = objectKey(input.userId, input.projectId, id)
         const kind = kindFor(input.name)
         const contentType = contentTypeFor(input.name) ?? 'application/octet-stream'
 
@@ -121,13 +122,13 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
 
         const record = Effect.gen(function* () {
           const entries = kind === 'bundle' ? yield* indexZip(key, input.size) : []
-          const ttl = clampTtl(input.ttlSeconds ?? input.project.ttlSeconds ?? DEFAULT_TTL_SECONDS)
+          const ttl = clampTtl(input.ttlSeconds)
           const now = new Date()
           const expiresAt = new Date(now.getTime() + ttl * 1000)
           yield* db.insert(artifact).values({
             id,
             userId: input.userId,
-            projectId: input.project.id,
+            projectId: input.projectId,
             name: input.name,
             kind,
             size: input.size,

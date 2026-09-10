@@ -1,9 +1,10 @@
 import { Effect, Schema } from 'effect'
 import { BadRequest, LengthRequired, PayloadTooLarge } from '../errors'
 import type { Route } from '../http'
-import { MAX_UPLOAD_BYTES } from '../limits'
+import { DEFAULT_TTL_SECONDS, MAX_UPLOAD_BYTES } from '../limits'
 import { Artifacts } from '../services/artifacts'
 import { Projects } from '../services/projects'
+import { SettingsService } from '../services/settings'
 import { Tokens } from '../services/tokens'
 
 export const FileName = Schema.Trim.pipe(
@@ -45,14 +46,20 @@ export function upload(request: Request): Route {
 
     const projects = yield* Projects
     const project = yield* projects.resolve(identity.userId, query.project)
+    const settings = yield* SettingsService
+    const ttlSeconds =
+      query.ttl ??
+      project.ttlSeconds ??
+      (yield* settings.defaultTtl(identity.userId)) ??
+      DEFAULT_TTL_SECONDS
     const artifacts = yield* Artifacts
     const result = yield* artifacts.upload({
       userId: identity.userId,
-      project,
+      projectId: project.id,
       name: query.name,
       size,
       body: request.body,
-      ttlSeconds: query.ttl,
+      ttlSeconds,
       uploadedBy: identity.tokenId,
     })
     return Response.json(
