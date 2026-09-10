@@ -1,18 +1,29 @@
 import { useRouter } from '@tanstack/react-router'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { ComputerIcon, Moon02Icon, Sun03Icon } from '@hugeicons/core-free-icons'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
 import { authClient } from '#/lib/auth-client'
+import { useTheme, type Theme } from '#/lib/theme'
 
 interface UserMenuProps {
   user: { name: string; email: string; image: string | null }
 }
+
+const themeOptions = [
+  { value: 'light', label: 'Light', icon: Sun03Icon },
+  { value: 'dark', label: 'Dark', icon: Moon02Icon },
+  { value: 'system', label: 'System', icon: ComputerIcon },
+] satisfies { value: Theme; label: string; icon: typeof Sun03Icon }[]
 
 function initials(name: string) {
   return name
@@ -25,6 +36,7 @@ function initials(name: string) {
 
 export function UserMenu({ user }: UserMenuProps) {
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   async function signOut() {
     await authClient.signOut()
@@ -54,6 +66,16 @@ export function UserMenu({ user }: UserMenuProps) {
             <span className="truncate text-xs text-muted-foreground">{user.email}</span>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={theme} onValueChange={(value) => setTheme(value as Theme)}>
+          {themeOptions.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              <HugeiconsIcon icon={option.icon} strokeWidth={2} />
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={signOut}>Log out</DropdownMenuItem>
       </DropdownMenuContent>
