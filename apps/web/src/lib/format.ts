@@ -16,3 +16,12 @@ export function formatBytes(bytes: number) {
   }
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
 }
+
+// "in 3 days", "in 5 hours", "soon". Day granularity keeps SSR and client equal.
+export function formatExpiry(iso: string, now = Date.now()) {
+  const ms = new Date(iso).getTime() - now
+  const hours = Math.floor(ms / 3_600_000)
+  if (hours >= 48) return `in ${Math.floor(hours / 24)} days`
+  if (hours >= 1) return `in ${hours} hour${hours === 1 ? '' : 's'}`
+  return 'soon'
+}

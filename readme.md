@@ -87,6 +87,13 @@ All routes need the session cookie. Mutations also need an `Origin` header that 
 
 `ttlSeconds` is between 60 and 90 days. A duplicate name returns `409`.
 
+Artifacts hang off a project. `/projects/:id` in the UI lists them newest first with a viewer link, copy link, and delete.
+
+| Route                             | What                                                    |
+| --------------------------------- | ------------------------------------------------------- |
+| `GET /api/projects/:id/artifacts` | Newest first, live only, with the uploader's token name |
+| `DELETE /api/artifacts/:id`       | Soft delete, `204`. The cron removes the bytes          |
+
 ## API tokens
 
 Named tokens for CI and runners. Manage them on `/settings`. The secret is `art_` plus 32 random bytes, shown once; only its SHA-256 is stored. Every token acts as the user and can upload to every project.
