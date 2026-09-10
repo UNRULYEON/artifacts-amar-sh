@@ -72,6 +72,21 @@ Local dev reads the same names from `apps/web/.dev.vars`. Use a second GitHub OA
 
 Routes: `/api/auth/*` is Better Auth, `GET /api/me` returns the signed-in user or `401`, `/login` and `/` are the UI.
 
+## Projects
+
+Projects live under the signed-in user. The `name` is a slug (`[a-z0-9]` with single dashes, max 64) and is what uploads reference. Deleting a project soft-deletes it and its artifacts; the slug is free again at once.
+
+All routes need the session cookie. Mutations also need an `Origin` header equal to `APP_URL`.
+
+| Route                      | What                                                                   |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `GET /api/projects`        | List, by name                                                          |
+| `POST /api/projects`       | `{ name, displayName?, ttlSeconds? }` → `201` with the project         |
+| `PATCH /api/projects/:id`  | Same fields, all optional. `null` clears `displayName` or `ttlSeconds` |
+| `DELETE /api/projects/:id` | `204`                                                                  |
+
+`ttlSeconds` is between 60 and 90 days. A duplicate name returns `409`.
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.

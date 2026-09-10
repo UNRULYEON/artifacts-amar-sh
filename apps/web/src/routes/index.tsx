@@ -1,5 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { CreateProjectForm, ProjectList } from '#/components/projects'
 import { UserMenu } from '#/components/user-menu'
+import { getProjects } from '#/lib/projects'
 import { getSession } from '#/lib/session'
 
 export const Route = createFileRoute('/')({
@@ -8,11 +10,13 @@ export const Route = createFileRoute('/')({
     if (!session) throw redirect({ to: '/login' })
     return { session }
   },
+  loader: () => getProjects(),
   component: Home,
 })
 
 function Home() {
   const { session } = Route.useRouteContext()
+  const projects = Route.useLoaderData()
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -20,7 +24,11 @@ function Home() {
         <h1 className="text-2xl font-semibold">Artifacts</h1>
         <UserMenu user={session.user} />
       </header>
-      <p className="text-muted-foreground">No projects yet.</p>
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-medium text-muted-foreground">Projects</h2>
+        <CreateProjectForm />
+        <ProjectList projects={projects} />
+      </section>
     </main>
   )
 }

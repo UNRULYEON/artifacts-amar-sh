@@ -4,6 +4,7 @@ import type { ApiEnv } from './env'
 import { Auth } from './services/auth'
 import { Bindings } from './services/bindings'
 import { Database } from './services/database'
+import { Projects } from './services/projects'
 import { Storage } from './services/storage'
 
 export function makeAppLayer(env: ApiEnv) {
@@ -17,6 +18,7 @@ export function makeAppLayer(env: ApiEnv) {
   const database = Database.layer.pipe(Layer.provide(sql))
   return Layer.mergeAll(
     Auth.Default.pipe(Layer.provide(database)),
+    Projects.Default.pipe(Layer.provide(database)),
     database,
     sql,
     Storage.Default.pipe(Layer.provide(bindings)),
