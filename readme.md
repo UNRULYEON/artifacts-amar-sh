@@ -87,6 +87,18 @@ All routes need the session cookie. Mutations also need an `Origin` header that 
 
 `ttlSeconds` is between 60 and 90 days. A duplicate name returns `409`.
 
+## API tokens
+
+Named tokens for CI and runners. Manage them on `/settings`. The secret is `art_` plus 32 random bytes, shown once; only its SHA-256 is stored. Every token acts as the user and can upload to every project.
+
+| Route                    | What                                                       |
+| ------------------------ | ---------------------------------------------------------- |
+| `GET /api/tokens`        | List: `id`, `name`, `createdAt`, `lastUsedAt`              |
+| `POST /api/tokens`       | `{ name }` → `201` with the same fields plus `token`, once |
+| `DELETE /api/tokens/:id` | Revoke, `204`                                              |
+
+Machine routes read `Authorization: Bearer <token>` and update `lastUsedAt` on each use.
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.

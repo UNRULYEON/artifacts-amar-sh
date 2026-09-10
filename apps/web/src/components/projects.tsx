@@ -1,4 +1,3 @@
-import { useRouter } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { MoreHorizontalIcon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState, type FormEvent } from 'react'
@@ -23,6 +22,7 @@ import {
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { api } from '#/lib/api'
+import { useMutation } from '#/lib/use-mutation'
 
 const DAY = 86400
 
@@ -35,29 +35,6 @@ function ttlLabel(ttlSeconds: number | null) {
 function daysToSeconds(value: string) {
   if (value.trim() === '') return null
   return Math.round(Number(value) * DAY)
-}
-
-function useMutation() {
-  const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  async function mutate(run: () => Promise<unknown>) {
-    setBusy(true)
-    setError(null)
-    try {
-      await run()
-      await router.invalidate()
-      return true
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.')
-      return false
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return { mutate, error, busy }
 }
 
 function readProjectForm(form: FormData) {
