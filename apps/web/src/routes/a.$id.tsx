@@ -51,9 +51,19 @@ function Viewer() {
       <header className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/" aria-label="Back to projects">
-              <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-            </Link>
+            {artifact.project ? (
+              <Link
+                to="/projects/$id"
+                params={{ id: artifact.project.id }}
+                aria-label="Back to project"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+              </Link>
+            ) : (
+              <Link to="/" aria-label="Back to projects">
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+              </Link>
+            )}
           </Button>
           <h1 className="truncate text-xl font-semibold">{artifact.name}</h1>
         </div>
