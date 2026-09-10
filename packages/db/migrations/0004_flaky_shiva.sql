@@ -1,0 +1,1 @@
+ALTER TABLE `upload_ticket` ADD `created_by` text;

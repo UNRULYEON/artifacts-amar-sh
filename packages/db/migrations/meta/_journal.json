@@ -29,6 +29,13 @@
       "when": 1789073210722,
       "tag": "0003_young_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789074322221,
+      "tag": "0004_flaky_shiva",
+      "breakpoints": true
     }
   ]
 }

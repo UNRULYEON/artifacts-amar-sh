@@ -121,6 +121,21 @@ The raw file is the body. No multipart. The Worker streams it to R2, then writes
 - `ttl` is optional and clamped to the range 60 seconds to 90 days. Without it the project TTL, then the 30 day default, applies.
 - No `Content-Length` is `411`. Over 100MB is `413`. A body that does not match the length is `400` and the bytes are dropped.
 
+### Upload tickets
+
+For agents and anything that cannot hold a token. Mint a ticket with a token, then `PUT` the file to the ticket URL with no auth header.
+
+```
+POST /api/upload-tickets            Authorization: Bearer art_...
+{ "project": "web", "name": "shot.png", "ttl": 86400 }
+→ 201 { "url": "https://artifacts.amar.sh/u/tkt_...", "expiresAt": "...", "curl": "curl -X PUT ..." }
+
+PUT /u/:ticket                      raw body, Content-Length required
+→ 201 { "id", "url", "expiresAt" }  same as POST /api/upload
+```
+
+A ticket lives ten minutes, works once, and is bound to the project, the file name, and the token that minted it, which becomes the artifact's uploader. The ticket is claimed before the bytes are read, so an upload that fails after the length check needs a new ticket. A used, expired, or unknown ticket answers `404`.
+
 Zips stay one R2 object. The Worker range-reads the central directory and stores one `artifact_file` row per entry. Rules: stored or deflate only, no Zip64, no encryption, at most 5000 entries, paths that stay inside the root. A folder that holds every entry and an `index.html` becomes `rootPath`. A zip that breaks a rule is `400` and nothing is kept.
 
 ```sh

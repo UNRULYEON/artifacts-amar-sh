@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { Effect, Schema } from 'effect'
 import { clampTtl } from '../src/limits'
 import { UploadQuery, contentLength } from '../src/routes/upload'
+import { CreateTicket } from '../src/services/tickets'
 
 const decode = Schema.decodeUnknownSync(UploadQuery)
 
@@ -50,5 +51,19 @@ describe('clampTtl', () => {
     expect(clampTtl(1)).toBe(60)
     expect(clampTtl(3600)).toBe(3600)
     expect(clampTtl(365 * 86400)).toBe(90 * 86400)
+  })
+})
+
+describe('CreateTicket', () => {
+  const decodeTicket = Schema.decodeUnknownSync(CreateTicket)
+
+  test('parses a ticket body and rejects a path name', () => {
+    expect(decodeTicket({ project: 'web', name: 'shot.png', ttl: 60 })).toEqual({
+      project: 'web',
+      name: 'shot.png',
+      ttl: 60,
+    })
+    expect(() => decodeTicket({ project: 'web', name: '../x' })).toThrow()
+    expect(() => decodeTicket({ project: 'web', name: 'a.png', ttl: '60' })).toThrow()
   })
 })
