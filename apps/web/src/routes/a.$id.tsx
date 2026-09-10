@@ -18,7 +18,7 @@ export const Route = createFileRoute('/a/$id')({
     if (!artifact) throw notFound()
     // Reports open as a site under the signed prefix.
     if (artifact.kind === 'bundle' && artifact.hasIndex) {
-      throw redirect({ href: `${artifact.base}/index.html` })
+      throw redirect({ href: `${artifact.base}/index.html`, reloadDocument: true })
     }
     return artifact
   },
