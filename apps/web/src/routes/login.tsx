@@ -5,8 +5,11 @@ import { authClient } from '#/lib/auth-client'
 import { getSession } from '#/lib/session'
 
 export const Route = createFileRoute('/login')({
-  validateSearch(search: Record<string, unknown>): { error?: string } {
-    return typeof search.error === 'string' ? { error: search.error } : {}
+  validateSearch(search: Record<string, unknown>): { error?: string; redirect?: string } {
+    return {
+      ...(typeof search.error === 'string' ? { error: search.error } : {}),
+      ...(typeof search.redirect === 'string' ? { redirect: search.redirect } : {}),
+    }
   },
   async beforeLoad() {
     const session = await getSession()
@@ -15,16 +18,17 @@ export const Route = createFileRoute('/login')({
   component: Login,
 })
 
-function signIn() {
-  void authClient.signIn.social({
-    provider: 'github',
-    callbackURL: '/',
-    errorCallbackURL: '/login',
-  })
+// Only a same-origin path may be the return target.
+function safePath(value: string | undefined) {
+  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/'
+}
+
+function signIn(callbackURL: string) {
+  void authClient.signIn.social({ provider: 'github', callbackURL, errorCallbackURL: '/login' })
 }
 
 function Login() {
-  const { error } = Route.useSearch()
+  const { error, redirect: returnTo } = Route.useSearch()
 
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
@@ -39,7 +43,7 @@ function Login() {
               Sign in failed: {error.replaceAll('_', ' ')}
             </p>
           ) : null}
-          <Button onClick={signIn} className="w-full">
+          <Button onClick={() => signIn(safePath(returnTo))} className="w-full">
             Continue with GitHub
           </Button>
         </CardContent>

@@ -122,6 +122,14 @@ curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" \
   "https://artifacts.amar.sh/api/upload?project=web&name=playwright-report.zip"
 ```
 
+## Viewer
+
+Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends you to `/login?redirect=/a/:id` and back. With a session it signs a one hour link and renders the viewer (image, video, single page in a sandboxed iframe, or a file list for a bundle without `index.html`). A bundle with `index.html` redirects straight to it.
+
+`GET /r/:id/<exp>.<sig>/<path>` serves the bytes. No cookie is read. `sig` is an HMAC over `id.exp` with a key derived from `BETTER_AUTH_SECRET`, so there is no second secret to set. An expired or bad link answers `403` with a link back to `/a/:id`, which re-signs it.
+
+Every `/r/*` response carries `Content-Security-Policy: sandbox allow-scripts` and `nosniff`, so report scripts run in an opaque origin and cannot reach cookies, the dashboard, or the API. `Range` requests get `206` on single files and on stored zip entries. Deflated entries are inflated with `DecompressionStream` on the fly. Paths inside a bundle are relative to `rootPath`. Add `?download` for an attachment disposition.
+
 ## Health
 
 `GET /api/health` returns `200` when the Worker answers. It does not probe D1 or R2.
