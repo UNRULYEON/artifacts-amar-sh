@@ -1,6 +1,7 @@
 import { schema } from '@artifacts/db'
+import { and, asc, eq, gt, isNull } from 'drizzle-orm'
 import { Effect } from 'effect'
-import { BadRequest } from '../errors'
+import { BadRequest, NotFound } from '../errors'
 import { newId } from '../id'
 import { DEFAULT_TTL_SECONDS, clampTtl } from '../limits'
 import { contentTypeFor, kindFor } from '../mime'
@@ -29,6 +30,9 @@ export interface UploadInput {
   ttlSeconds?: number
   uploadedBy: string
 }
+
+export type ArtifactRow = typeof artifact.$inferSelect
+export type ArtifactFileRow = typeof artifactFile.$inferSelect
 
 export interface Uploaded {
   id: string
@@ -132,6 +136,41 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
       }).pipe(Effect.withSpan('Artifacts.upload'))
     }
 
-    return { upload }
+    // Live artifacts only: not deleted, not expired.
+    function get(id: string) {
+      return db
+        .select()
+        .from(artifact)
+        .where(
+          and(eq(artifact.id, id), isNull(artifact.deletedAt), gt(artifact.expiresAt, new Date())),
+        )
+        .limit(1)
+        .pipe(
+          Effect.flatMap((rows) =>
+            rows[0] ? Effect.succeed(rows[0]) : new NotFound({ message: 'Artifact not found.' }),
+          ),
+          Effect.withSpan('Artifacts.get'),
+        )
+    }
+
+    function files(artifactId: string) {
+      return db
+        .select()
+        .from(artifactFile)
+        .where(eq(artifactFile.artifactId, artifactId))
+        .orderBy(asc(artifactFile.path))
+        .pipe(Effect.withSpan('Artifacts.files'))
+    }
+
+    function file(artifactId: string, path: string) {
+      return db
+        .select()
+        .from(artifactFile)
+        .where(and(eq(artifactFile.artifactId, artifactId), eq(artifactFile.path, path)))
+        .limit(1)
+        .pipe(Effect.map((rows) => rows[0] ?? null))
+    }
+
+    return { upload, get, files, file }
   }),
 }) {}
