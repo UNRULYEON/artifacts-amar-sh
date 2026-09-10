@@ -22,6 +22,10 @@ export class Conflict extends Schema.TaggedError<Conflict>()('Conflict', {
   message: Schema.String,
 }) {}
 
+export class LengthRequired extends Schema.TaggedError<LengthRequired>()('LengthRequired', {
+  message: Schema.String,
+}) {}
+
 export class PayloadTooLarge extends Schema.TaggedError<PayloadTooLarge>()('PayloadTooLarge', {
   message: Schema.String,
 }) {}
@@ -37,4 +41,5 @@ export type HttpFailure =
   | Forbidden
   | NotFound
   | Conflict
+  | LengthRequired
   | PayloadTooLarge
