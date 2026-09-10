@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { CreateProjectForm, ProjectList } from '#/components/projects'
+import { CreateProjectButton, ProjectList } from '#/components/projects'
 import { UserMenu } from '#/components/user-menu'
 import { getProjects } from '#/lib/projects'
 import { getSession } from '#/lib/session'
@@ -25,8 +25,10 @@ function Home() {
         <UserMenu user={session.user} />
       </header>
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-medium text-muted-foreground">Projects</h2>
-        <CreateProjectForm />
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">Projects</h2>
+          <CreateProjectButton />
+        </div>
         <ProjectList projects={projects} />
       </section>
     </main>

@@ -1,12 +1,14 @@
 import { useRouter } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { MoreHorizontalIcon } from '@hugeicons/core-free-icons'
+import { MoreHorizontalIcon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import type { Project } from '@artifacts/api'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogTrigger,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -58,47 +60,108 @@ function useMutation() {
   return { mutate, error, busy }
 }
 
-export function CreateProjectForm() {
-  const [name, setName] = useState('')
-  const { mutate, error, busy } = useMutation()
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const ok = await mutate(() =>
-      api('/api/projects', { method: 'POST', body: JSON.stringify({ name }) }),
-    )
-    if (ok) setName('')
+function readProjectForm(form: FormData) {
+  const displayName = String(form.get('displayName')).trim()
+  return {
+    name: String(form.get('name')),
+    displayName: displayName === '' ? null : displayName,
+    ttlSeconds: daysToSeconds(String(form.get('ttlDays'))),
   }
+}
 
+function ProjectFields({ project, idPrefix }: { project?: Project; idPrefix: string }) {
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
-      <div className="flex gap-2">
+    <>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${idPrefix}-name`}>Name</Label>
         <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="new-project"
-          aria-label="Project name"
-          aria-invalid={error ? true : undefined}
+          id={`${idPrefix}-name`}
+          name="name"
+          defaultValue={project?.name}
+          placeholder="my-project"
           autoCapitalize="none"
           autoCorrect="off"
           required
         />
-        <Button type="submit" disabled={busy || name === ''}>
-          Create
-        </Button>
       </div>
-      {error ? (
-        <p className="text-xs text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </form>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${idPrefix}-display`}>Display name</Label>
+        <Input
+          id={`${idPrefix}-display`}
+          name="displayName"
+          defaultValue={project?.displayName ?? ''}
+          placeholder="Optional"
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${idPrefix}-ttl`}>Retention in days</Label>
+        <Input
+          id={`${idPrefix}-ttl`}
+          name="ttlDays"
+          type="number"
+          min={1}
+          max={90}
+          defaultValue={project?.ttlSeconds == null ? '' : project.ttlSeconds / DAY}
+          placeholder="Default"
+        />
+      </div>
+    </>
+  )
+}
+
+export function CreateProjectButton() {
+  const [open, setOpen] = useState(false)
+  const { mutate, error, busy } = useMutation()
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const input = readProjectForm(new FormData(event.currentTarget))
+    const ok = await mutate(() =>
+      api('/api/projects', { method: 'POST', body: JSON.stringify(input) }),
+    )
+    if (ok) {
+      setOpen(false)
+      toast.success(`Project "${input.displayName ?? input.name}" created.`)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+          New project
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>New project</DialogTitle>
+            <DialogDescription>The name is the slug you use in uploads.</DialogDescription>
+          </DialogHeader>
+          <ProjectFields idPrefix="new" />
+          {error ? (
+            <p className="text-xs text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              Create
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 export function ProjectList({ projects }: { projects: Project[] }) {
   if (projects.length === 0) {
-    return <p className="text-sm text-muted-foreground">No projects yet. Create one above.</p>
+    return <p className="text-sm text-muted-foreground">No projects yet.</p>
   }
   return (
     <ul className="divide-y divide-border rounded-lg ring-1 ring-foreground/10">
@@ -159,17 +222,9 @@ function EditProjectDialog({ project, open, onClose }: ProjectDialogProps) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const displayName = String(form.get('displayName')).trim()
+    const input = readProjectForm(new FormData(event.currentTarget))
     const ok = await mutate(() =>
-      api(`/api/projects/${project.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name: String(form.get('name')),
-          displayName: displayName === '' ? null : displayName,
-          ttlSeconds: daysToSeconds(String(form.get('ttlDays'))),
-        }),
-      }),
+      api(`/api/projects/${project.id}`, { method: 'PATCH', body: JSON.stringify(input) }),
     )
     if (ok) onClose()
   }
@@ -182,38 +237,7 @@ function EditProjectDialog({ project, open, onClose }: ProjectDialogProps) {
             <DialogTitle>Edit project</DialogTitle>
             <DialogDescription>The name is the slug you use in uploads.</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`name-${project.id}`}>Name</Label>
-            <Input
-              id={`name-${project.id}`}
-              name="name"
-              defaultValue={project.name}
-              autoCapitalize="none"
-              autoCorrect="off"
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`display-${project.id}`}>Display name</Label>
-            <Input
-              id={`display-${project.id}`}
-              name="displayName"
-              defaultValue={project.displayName ?? ''}
-              placeholder={project.name}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`ttl-${project.id}`}>Retention in days</Label>
-            <Input
-              id={`ttl-${project.id}`}
-              name="ttlDays"
-              type="number"
-              min={1}
-              max={90}
-              defaultValue={project.ttlSeconds === null ? '' : project.ttlSeconds / DAY}
-              placeholder="Default"
-            />
-          </div>
+          <ProjectFields project={project} idPrefix={project.id} />
           {error ? (
             <p className="text-xs text-destructive" role="alert">
               {error}
