@@ -9,12 +9,23 @@ import {
 } from '@hugeicons/core-free-icons'
 import { useTheme } from '#/lib/theme'
 
+// Keeps toasts clear of the home indicator and the rounded corners when installed.
+function inset(side: 'top' | 'right' | 'bottom' | 'left', base: string) {
+  return `calc(env(safe-area-inset-${side}) + ${base})`
+}
+
 function Toaster(props: ToasterProps) {
   const { theme } = useTheme()
 
   return (
     <Sonner
       theme={theme}
+      offset={{ right: inset('right', '1.5rem'), bottom: inset('bottom', '1.5rem') }}
+      mobileOffset={{
+        left: inset('left', '1rem'),
+        right: inset('right', '1rem'),
+        bottom: inset('bottom', '1rem'),
+      }}
       className="toaster group"
       icons={{
         success: <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />,

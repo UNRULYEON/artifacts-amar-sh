@@ -3,28 +3,29 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { Toaster } from '#/components/ui/sonner'
-import { ThemeProvider, themeInitScript } from '#/lib/theme'
+import { splashLinks } from '#/lib/ios-devices'
+import { ThemeProvider, themeColors, themeInitScript } from '#/lib/theme'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      {
-        charSet: 'utf-8',
-      },
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
-      },
-      {
-        title: 'Artifacts',
-      },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+      { title: 'Artifacts' },
+      // Installed on an iPhone or iPad: no browser chrome, page under the status bar.
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-title', content: 'Artifacts' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
     ],
     links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' },
+      { rel: 'apple-touch-icon', href: '/apple-icon.png' },
+      { rel: 'manifest', href: '/manifest.webmanifest' },
+      // Cold-launch images for installed iPhone and iPad apps.
+      ...splashLinks,
     ],
   }),
   shellComponent: RootDocument,
@@ -35,6 +36,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* Not in head(): the router keeps only one meta per name. */}
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: light)"
+          content={themeColors.light}
+        />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content={themeColors.dark} />
         <HeadContent />
       </head>
       <body>

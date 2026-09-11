@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "deploy": "wrangler deploy",
     "types": "wrangler types",
+    "icons": "sh scripts/icons.sh && bun scripts/splash.ts",
     "typecheck": "tsr generate && tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply artifacts --local",
     "migrate": "wrangler d1 migrations apply artifacts --remote"

@@ -1,8 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
+import { FormError } from '#/components/form-error'
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
-import { Label } from '#/components/ui/label'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '#/components/ui/field'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from '#/components/ui/input-group'
+import { Spinner } from '#/components/ui/spinner'
 import { api } from '#/lib/api'
 import { useMutation } from '#/lib/use-mutation'
 
@@ -25,31 +32,35 @@ export function RetentionForm({ defaultTtlSeconds }: { defaultTtlSeconds: number
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
-      <Label htmlFor="default-ttl">Default retention in days</Label>
-      <div className="flex gap-2">
-        <Input
-          id="default-ttl"
-          type="number"
-          min={1}
-          max={90}
-          value={days}
-          onChange={(e) => setDays(e.target.value)}
-          placeholder="30"
-          className="max-w-32"
-        />
-        <Button type="submit" variant="outline" disabled={busy}>
-          Save
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Used when an upload and its project set no retention. Empty means 30 days. Max 90.
-      </p>
-      {error ? (
-        <p className="text-xs text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="default-ttl">Default retention</FieldLabel>
+          <div className="flex gap-2">
+            <InputGroup className="max-w-40">
+              <InputGroupInput
+                id="default-ttl"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={90}
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                placeholder="30"
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupText>days</InputGroupText>
+              </InputGroupAddon>
+            </InputGroup>
+            <Button type="submit" variant="outline" disabled={busy}>
+              {busy ? <Spinner data-icon="inline-start" /> : null}
+              Save
+            </Button>
+          </div>
+          <FieldDescription>Empty means 30 days. Max 90.</FieldDescription>
+        </Field>
+        <FormError error={error} />
+      </FieldGroup>
     </form>
   )
 }

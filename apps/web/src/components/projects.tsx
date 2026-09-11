@@ -1,9 +1,18 @@
 import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { MoreHorizontalIcon, PlusSignIcon } from '@hugeicons/core-free-icons'
+import {
+  Delete02Icon,
+  Folder01Icon,
+  MoreHorizontalIcon,
+  PencilEdit02Icon,
+  PlusSignIcon,
+} from '@hugeicons/core-free-icons'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import type { Project } from '@artifacts/api'
+import { ConfirmDialog } from '#/components/confirm-dialog'
+import { FormError } from '#/components/form-error'
+import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -17,11 +26,30 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '#/components/ui/empty'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
-import { Label } from '#/components/ui/label'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from '#/components/ui/item'
+import { Spinner } from '#/components/ui/spinner'
 import { api } from '#/lib/api'
 import { useMutation } from '#/lib/use-mutation'
 
@@ -49,9 +77,9 @@ function readProjectForm(form: FormData) {
 
 function ProjectFields({ project, idPrefix }: { project?: Project; idPrefix: string }) {
   return (
-    <>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={`${idPrefix}-name`}>Name</Label>
+    <FieldGroup>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
         <Input
           id={`${idPrefix}-name`}
           name="name"
@@ -59,31 +87,35 @@ function ProjectFields({ project, idPrefix }: { project?: Project; idPrefix: str
           placeholder="my-project"
           autoCapitalize="none"
           autoCorrect="off"
+          spellCheck={false}
           required
         />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={`${idPrefix}-display`}>Display name</Label>
+        <FieldDescription>Lowercase letters, digits, and single dashes.</FieldDescription>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-display`}>Display name</FieldLabel>
         <Input
           id={`${idPrefix}-display`}
           name="displayName"
           defaultValue={project?.displayName ?? ''}
           placeholder="Optional"
         />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={`${idPrefix}-ttl`}>Retention in days</Label>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-ttl`}>Retention in days</FieldLabel>
         <Input
           id={`${idPrefix}-ttl`}
           name="ttlDays"
           type="number"
+          inputMode="numeric"
           min={1}
           max={90}
           defaultValue={project?.ttlSeconds == null ? '' : project.ttlSeconds / DAY}
           placeholder="Default"
         />
-      </div>
-    </>
+        <FieldDescription>Empty uses the default from Settings. Max 90.</FieldDescription>
+      </Field>
+    </FieldGroup>
   )
 }
 
@@ -118,16 +150,13 @@ export function CreateProjectButton() {
             <DialogDescription>The name is the slug you use in uploads.</DialogDescription>
           </DialogHeader>
           <ProjectFields idPrefix="new" />
-          {error ? (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
+          <FormError error={error} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={busy}>
+              {busy ? <Spinner data-icon="inline-start" /> : null}
               Create
             </Button>
           </DialogFooter>
@@ -139,14 +168,29 @@ export function CreateProjectButton() {
 
 export function ProjectList({ projects }: { projects: Project[] }) {
   if (projects.length === 0) {
-    return <p className="text-sm text-muted-foreground">No projects yet.</p>
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <HugeiconsIcon icon={Folder01Icon} strokeWidth={2} />
+          </EmptyMedia>
+          <EmptyTitle>No projects yet</EmptyTitle>
+          <EmptyDescription>
+            Create one first. Its name is the slug that uploads point at.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <CreateProjectButton />
+        </EmptyContent>
+      </Empty>
+    )
   }
   return (
-    <ul className="divide-y divide-border rounded-lg ring-1 ring-foreground/10">
+    <ItemGroup className="gap-0 divide-y overflow-hidden rounded-lg border">
       {projects.map((project) => (
         <ProjectRow key={project.id} project={project} />
       ))}
-    </ul>
+    </ItemGroup>
   )
 }
 
@@ -154,44 +198,60 @@ function ProjectRow({ project }: { project: Project }) {
   const [dialog, setDialog] = useState<'edit' | 'delete' | null>(null)
 
   return (
-    <li className="flex items-center gap-4 px-4 py-3">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Link
-          to="/projects/$id"
-          params={{ id: project.id }}
-          className="truncate text-sm font-medium hover:underline"
-        >
-          {project.displayName ?? project.name}
-        </Link>
-        <span className="truncate font-mono text-xs text-muted-foreground">{project.name}</span>
-      </div>
-      <span className="hidden text-xs text-muted-foreground sm:block">
-        {ttlLabel(project.ttlSeconds)}
-      </span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Actions for ${project.name}`}>
-            <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setDialog('edit')}>Edit</DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <Item className="relative rounded-none hover:bg-muted/50 active:bg-muted">
+      <ItemMedia variant="icon">
+        <HugeiconsIcon icon={Folder01Icon} strokeWidth={2} />
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>
+          <Link
+            to="/projects/$id"
+            params={{ id: project.id }}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {project.displayName ?? project.name}
+          </Link>
+        </ItemTitle>
+        <ItemDescription className="font-mono">{project.name}</ItemDescription>
+      </ItemContent>
+      <ItemActions className="relative">
+        <Badge variant="secondary" className="hidden sm:inline-flex">
+          {ttlLabel(project.ttlSeconds)}
+        </Badge>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={`Actions for ${project.name}`}>
+              <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => setDialog('edit')}>
+                <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ItemActions>
       <EditProjectDialog
         project={project}
         open={dialog === 'edit'}
         onClose={() => setDialog(null)}
       />
-      <DeleteProjectDialog
-        project={project}
+      <ConfirmDialog
         open={dialog === 'delete'}
-        onClose={() => setDialog(null)}
+        onOpenChange={(next) => setDialog(next ? 'delete' : null)}
+        title={`Delete ${project.displayName ?? project.name}?`}
+        description="All artifacts in this project are removed on the next cleanup. This cannot be undone."
+        action="Delete"
+        run={() => api(`/api/projects/${project.id}`, { method: 'DELETE' })}
       />
-    </li>
+    </Item>
   )
 }
 
@@ -222,55 +282,17 @@ function EditProjectDialog({ project, open, onClose }: ProjectDialogProps) {
             <DialogDescription>The name is the slug you use in uploads.</DialogDescription>
           </DialogHeader>
           <ProjectFields project={project} idPrefix={project.id} />
-          {error ? (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
+          <FormError error={error} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={busy}>
+              {busy ? <Spinner data-icon="inline-start" /> : null}
               Save
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function DeleteProjectDialog({ project, open, onClose }: ProjectDialogProps) {
-  const { mutate, error, busy } = useMutation()
-
-  async function confirm() {
-    const ok = await mutate(() => api(`/api/projects/${project.id}`, { method: 'DELETE' }))
-    if (ok) onClose()
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete {project.displayName ?? project.name}?</DialogTitle>
-          <DialogDescription>
-            All artifacts in this project are removed on the next cleanup. This cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        {error ? (
-          <p className="text-xs text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="button" variant="destructive" onClick={confirm} disabled={busy}>
-            Delete
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
