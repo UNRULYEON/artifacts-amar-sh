@@ -1,10 +1,18 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ComputerIcon, Moon02Icon, Settings01Icon, Sun03Icon } from '@hugeicons/core-free-icons'
+import {
+  ComputerIcon,
+  Logout03Icon,
+  Moon02Icon,
+  Settings01Icon,
+  Sun03Icon,
+} from '@hugeicons/core-free-icons'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
+import { Button } from '#/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -46,14 +54,13 @@ export function UserMenu({ user }: UserMenuProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label="Account menu"
-      >
-        <Avatar>
-          <AvatarImage src={user.image ?? undefined} alt="" />
-          <AvatarFallback>{initials(user.name)}</AvatarFallback>
-        </Avatar>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-lg" className="rounded-full" aria-label="Account menu">
+          <Avatar>
+            <AvatarImage src={user.image ?? undefined} alt="" />
+            <AvatarFallback>{initials(user.name)}</AvatarFallback>
+          </Avatar>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center gap-3 font-normal">
@@ -77,13 +84,18 @@ export function UserMenu({ user }: UserMenuProps) {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/settings">
-            <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
-            Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={signOut}>Log out</DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link to="/settings">
+              <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
+              Settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={signOut}>
+            <HugeiconsIcon icon={Logout03Icon} strokeWidth={2} />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

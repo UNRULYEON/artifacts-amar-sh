@@ -1,7 +1,16 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
+import { FormError } from '#/components/form-error'
 import { Button } from '#/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '#/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '#/components/ui/card'
+import { Spinner } from '#/components/ui/spinner'
 import { getSession } from '#/lib/session'
 
 // Better Auth sends the OAuth authorize query here, signed. We hand it back
@@ -20,11 +29,11 @@ export const Route = createFileRoute('/consent')({
 
 function Consent() {
   const { client_id: clientId, scope } = Route.useSearch()
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'allow' | 'deny' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function decide(accept: boolean) {
-    setBusy(true)
+    setBusy(accept ? 'allow' : 'deny')
     setError(null)
     try {
       const res = await fetch('/api/auth/oauth2/consent', {
@@ -37,12 +46,12 @@ function Consent() {
       location.href = body.redirect_uri
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Consent failed.')
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
+    <main className="flex min-h-svh items-center justify-center px-safe-area-6 py-safe-area-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Allow access?</CardTitle>
@@ -58,20 +67,18 @@ function Consent() {
             <dt className="text-muted-foreground">Scopes</dt>
             <dd className="font-mono">{scope ?? 'default'}</dd>
           </dl>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => decide(false)} disabled={busy}>
-              Deny
-            </Button>
-            <Button onClick={() => decide(true)} disabled={busy}>
-              Allow
-            </Button>
-          </div>
+          <FormError error={error} />
         </CardContent>
+        <CardFooter className="justify-end gap-2">
+          <Button variant="outline" onClick={() => decide(false)} disabled={busy !== null}>
+            {busy === 'deny' ? <Spinner data-icon="inline-start" /> : null}
+            Deny
+          </Button>
+          <Button onClick={() => decide(true)} disabled={busy !== null}>
+            {busy === 'allow' ? <Spinner data-icon="inline-start" /> : null}
+            Allow
+          </Button>
+        </CardFooter>
       </Card>
     </main>
   )

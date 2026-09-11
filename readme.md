@@ -28,6 +28,10 @@ bun run db:migrate         # wrangler d1 migrations apply --remote
 bun run types              # wrangler types -> apps/web/worker-configuration.d.ts
 ```
 
+## Web app
+
+The site installs as a web app (iPhone and iPad "Add to Home Screen", macOS Safari "Add to Dock"). `apps/web/public` holds the manifest and icons. `public/icon.svg` is the only artwork; `bun run --filter web icons` renders every icon PNG and the iOS startup images in `public/splash` from it (macOS only, uses `qlmanage` and `sips`). Commit the PNGs. The device list for startup images lives in `src/lib/ios-devices.ts`; after you change the artwork, bump `splashVersion` there, because iOS caches the images per home-screen entry.
+
 ## First-time Cloudflare setup
 
 ```sh

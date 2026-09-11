@@ -1,8 +1,10 @@
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Copy01Icon, PlusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { Copy01Icon, Key01Icon, PlusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import type { Token } from '@artifacts/api'
+import { ConfirmDialog } from '#/components/confirm-dialog'
+import { FormError } from '#/components/form-error'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -13,8 +15,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '#/components/ui/dialog'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '#/components/ui/empty'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
-import { Label } from '#/components/ui/label'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '#/components/ui/input-group'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from '#/components/ui/item'
+import { Spinner } from '#/components/ui/spinner'
 import { api } from '#/lib/api'
 import { formatDate } from '#/lib/format'
 import { useMutation } from '#/lib/use-mutation'
@@ -72,24 +98,30 @@ export function CreateTokenButton() {
           <form onSubmit={submit} className="flex flex-col gap-4">
             <DialogHeader>
               <DialogTitle>New token</DialogTitle>
-              <DialogDescription>
-                Tokens can upload to every project. Name it after where it lives.
-              </DialogDescription>
+              <DialogDescription>Tokens can upload to every project.</DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="token-name">Name</Label>
-              <Input id="token-name" name="name" placeholder="github-ci" required autoFocus />
-            </div>
-            {error ? (
-              <p className="text-xs text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="token-name">Name</FieldLabel>
+                <Input
+                  id="token-name"
+                  name="name"
+                  placeholder="github-ci"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                  autoFocus
+                />
+                <FieldDescription>Name it after the place it lives.</FieldDescription>
+              </Field>
+            </FieldGroup>
+            <FormError error={error} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={busy}>
+                {busy ? <Spinner data-icon="inline-start" /> : null}
                 Create
               </Button>
             </DialogFooter>
@@ -114,82 +146,79 @@ function SecretField({ secret }: { secret: string }) {
   }
 
   return (
-    <div className="flex gap-2">
-      <Input
+    <InputGroup>
+      <InputGroupInput
         readOnly
         value={secret}
         className="font-mono"
         onFocus={(e) => e.currentTarget.select()}
       />
-      <Button type="button" variant="outline" size="icon" onClick={copy} aria-label="Copy token">
-        <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={2} />
-      </Button>
-    </div>
+      <InputGroupAddon align="inline-end">
+        <InputGroupButton size="icon-xs" onClick={copy} aria-label="Copy token">
+          <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={2} />
+        </InputGroupButton>
+      </InputGroupAddon>
+    </InputGroup>
   )
 }
 
 export function TokenList({ tokens }: { tokens: Token[] }) {
   if (tokens.length === 0) {
-    return <p className="text-sm text-muted-foreground">No tokens yet.</p>
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <HugeiconsIcon icon={Key01Icon} strokeWidth={2} />
+          </EmptyMedia>
+          <EmptyTitle>No tokens yet</EmptyTitle>
+          <EmptyDescription>CI runners and scripts upload with a token.</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <CreateTokenButton />
+        </EmptyContent>
+      </Empty>
+    )
   }
   return (
-    <ul className="divide-y divide-border rounded-lg ring-1 ring-foreground/10">
+    <ItemGroup className="gap-0 divide-y overflow-hidden rounded-lg border">
       {tokens.map((token) => (
         <TokenRow key={token.id} token={token} />
       ))}
-    </ul>
+    </ItemGroup>
   )
 }
 
 function TokenRow({ token }: { token: Token }) {
   const [open, setOpen] = useState(false)
-  const { mutate, error, busy } = useMutation()
-
-  async function revoke() {
-    const ok = await mutate(() => api(`/api/tokens/${token.id}`, { method: 'DELETE' }))
-    if (ok) {
-      setOpen(false)
-      toast.success(`Token "${token.name}" revoked.`)
-    }
-  }
 
   return (
-    <li className="flex items-center gap-4 px-4 py-3">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium">{token.name}</span>
-        <span className="truncate text-xs text-muted-foreground">
+    <Item className="rounded-none">
+      <ItemMedia variant="icon">
+        <HugeiconsIcon icon={Key01Icon} strokeWidth={2} />
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>{token.name}</ItemTitle>
+        <ItemDescription>
           Created {formatDate(token.createdAt)}. Last used{' '}
           {token.lastUsedAt ? formatDate(token.lastUsedAt) : 'never'}.
-        </span>
-      </div>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            Revoke
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Revoke "{token.name}"?</DialogTitle>
-            <DialogDescription>
-              Uploads with this token fail from now on. Other tokens are not affected.
-            </DialogDescription>
-          </DialogHeader>
-          {error ? (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" variant="destructive" onClick={revoke} disabled={busy}>
+        </ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <ConfirmDialog
+          open={open}
+          onOpenChange={setOpen}
+          trigger={
+            <Button variant="outline" size="sm">
               Revoke
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </li>
+          }
+          title={`Revoke "${token.name}"?`}
+          description="Uploads with this token fail from now on. Other tokens are not affected."
+          action="Revoke"
+          run={() => api(`/api/tokens/${token.id}`, { method: 'DELETE' })}
+          onDone={() => toast.success(`Token "${token.name}" revoked.`)}
+        />
+      </ItemActions>
+    </Item>
   )
 }

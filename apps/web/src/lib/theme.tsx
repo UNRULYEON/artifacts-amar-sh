@@ -12,6 +12,9 @@ export type Theme = 'light' | 'dark' | 'system'
 export const themes: Theme[] = ['light', 'dark', 'system']
 const storageKey = 'theme'
 
+// Same values as --background in styles.css. Browsers that honour theme-color read these.
+export const themeColors = { light: '#ffffff', dark: '#0a0a0a' }
+
 // Runs in <head> before the first paint, so the page never flashes the wrong theme.
 export const themeInitScript = `(function(){try{var t=localStorage.getItem('${storageKey}');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`
 
@@ -42,6 +45,9 @@ function prefersDark() {
 function applyTheme(theme: Theme) {
   const dark = theme === 'dark' || (theme === 'system' && prefersDark())
   document.documentElement.classList.toggle('dark', dark)
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute('content', dark ? themeColors.dark : themeColors.light)
+  }
 }
 
 function withTransition(update: () => void) {
