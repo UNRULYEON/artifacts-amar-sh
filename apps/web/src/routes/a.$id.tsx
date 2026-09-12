@@ -14,6 +14,7 @@ import type { ComparePair } from '@artifacts/api'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppHeader, PageBody, type BackLink } from '#/components/app-shell'
+import { IconSwap } from '#/components/icon-swap'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Slider } from '#/components/ui/slider'
@@ -353,7 +354,7 @@ function VideoPair({ sides }: { sides: Side[] }) {
           onClick={playing ? pause : play}
           aria-label={playing ? 'Pause both' : 'Play both'}
         >
-          <HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} strokeWidth={2} />
+          <IconSwap state={playing ? 'b' : 'a'} a={PlayIcon} b={PauseIcon} />
         </Button>
         <span className="w-9 text-xs text-muted-foreground tabular-nums">{formatTime(time)}</span>
         <Slider
@@ -373,7 +374,7 @@ function VideoPair({ sides }: { sides: Side[] }) {
           onClick={() => setMuted((m) => !m)}
           aria-label={muted ? 'Unmute both' : 'Mute both'}
         >
-          <HugeiconsIcon icon={muted ? VolumeOffIcon : VolumeHighIcon} strokeWidth={2} />
+          <IconSwap state={muted ? 'a' : 'b'} a={VolumeOffIcon} b={VolumeHighIcon} />
         </Button>
       </div>
     </div>
