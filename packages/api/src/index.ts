@@ -28,6 +28,7 @@ export { SettingsService, type Settings } from './services/settings'
 export { Retention, type SweepResult } from './services/retention'
 export { Tickets } from './services/tickets'
 export { Bindings } from './services/bindings'
+export { comparePairs, type ComparePair } from './zip'
 export * from './errors'
 
 // Cron entry. Errors are logged, never thrown, so the trigger stays healthy.

@@ -69,12 +69,13 @@ export function serveBytes(request: Request, id: string, token: string, rawPath:
     const download = new URL(request.url).searchParams.has('download')
     const range = request.method === 'GET' ? request.headers.get('range') : null
 
-    if (row.kind === 'bundle') {
+    if (row.kind === 'bundle' || row.kind === 'compare') {
       const entry = yield* artifacts.file(id, bundlePath(row.rootPath, path))
-      if (!entry) return page(404, 'Not found', 'No such file in this bundle.')
-      return yield* serveEntry(row, entry, path, range, download)
+      if (entry) return yield* serveEntry(row, entry, path, range, download)
+      if (path !== row.name) return page(404, 'Not found', 'No such file in this bundle.')
+    } else if (path !== row.name) {
+      return page(404, 'Not found', 'No such file.')
     }
-    if (path !== row.name) return page(404, 'Not found', 'No such file.')
     return yield* serveWhole(row, range, download)
   }).pipe(Effect.withSpan('serveBytes'))
 }

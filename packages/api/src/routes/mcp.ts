@@ -12,6 +12,7 @@ import { Auth, mcpResource } from '../services/auth'
 import { Projects } from '../services/projects'
 import { Tickets } from '../services/tickets'
 import { fromBase64url } from '../encoding'
+import { buildStoredZip } from '../zip'
 import { resolveTtl } from './upload'
 
 // Stateless streamable HTTP MCP. One server per request, bound to the user
@@ -49,12 +50,53 @@ function runTool<A>(runtime: AppRuntime, effect: Effect.Effect<A, unknown, AppSe
   )
 }
 
-function decodeBase64(value: string) {
+function decodeBase64(value: string, field = 'contentBase64') {
   const compact = value.replace(/\s+/g, '')
   const bytes = fromBase64url(compact.replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, ''))
   return bytes
     ? Effect.succeed(bytes)
-    : Effect.fail(new BadRequest({ message: 'contentBase64 is not base64.' }))
+    : Effect.fail(new BadRequest({ message: `${field} is not base64.` }))
+}
+
+// One inline file: decoded and within the inline limit.
+function inlineFile(value: string, field: string) {
+  return Effect.gen(function* () {
+    const bytes = yield* decodeBase64(value, field)
+    if (bytes.byteLength === 0) return yield* new BadRequest({ message: `${field} is empty.` })
+    if (bytes.byteLength > MCP_INLINE_MAX_BYTES) {
+      return yield* new BadRequest({
+        message: `${field} is ${bytes.byteLength} bytes; inline max is ${MCP_INLINE_MAX_BYTES}. Use get_upload_url.`,
+      })
+    }
+    return bytes
+  })
+}
+
+function uploadInline(
+  userId: string,
+  origin: string,
+  input: { project: string; name: string; bytes: Uint8Array<ArrayBuffer>; ttl?: number },
+) {
+  return Effect.gen(function* () {
+    const projects = yield* Projects
+    const target = yield* projects.resolve(userId, input.project)
+    const ttlSeconds = yield* resolveTtl({
+      userId,
+      projectTtlSeconds: target.ttlSeconds,
+      ttlSeconds: input.ttl,
+    })
+    const artifacts = yield* Artifacts
+    const result = yield* artifacts.upload({
+      userId,
+      projectId: target.id,
+      name: input.name,
+      size: input.bytes.byteLength,
+      body: new Blob([input.bytes]).stream(),
+      ttlSeconds,
+      uploadedBy: 'mcp',
+    })
+    return { id: result.id, url: `${origin}/a/${result.id}`, expiresAt: result.expiresAt }
+  })
 }
 
 function makeServer(runtime: AppRuntime, userId: string, origin: string) {
@@ -82,6 +124,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
               `Files up to ${MCP_INLINE_MAX_BYTES} bytes: call upload with contentBase64.`,
               `Larger files up to ${MAX_UPLOAD_BYTES} bytes: call get_upload_url, then run the returned curl in a shell.`,
               'The response url opens in a browser after GitHub login. Bundles (zip with index.html) open as a site.',
+              'Before and after: call upload_comparison with one or more pairs, or upload a zip whose entries are only before.<ext> and after.<ext>, at the root or one folder per pair. Each pair is both images or both videos; pairs may mix. They are shown side by side.',
             ],
             uploadTicketShape: `curl -X PUT --data-binary @<file> ${origin}/u/<ticket>`,
           }
@@ -131,31 +174,65 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
       runTool(
         runtime,
         Effect.gen(function* () {
-          const bytes = yield* decodeBase64(contentBase64)
-          if (bytes.byteLength === 0) return yield* new BadRequest({ message: 'File is empty.' })
-          if (bytes.byteLength > MCP_INLINE_MAX_BYTES) {
-            return yield* new BadRequest({
-              message: `File is ${bytes.byteLength} bytes; inline max is ${MCP_INLINE_MAX_BYTES}. Use get_upload_url.`,
-            })
+          const bytes = yield* inlineFile(contentBase64, 'contentBase64')
+          return yield* uploadInline(userId, origin, { project, name, bytes, ttl })
+        }),
+      ),
+  )
+
+  server.registerTool(
+    'upload_comparison',
+    {
+      description:
+        'Upload one or more before and after pairs (screenshots or videos, up to 2MB per file), shown side by side. Returns the viewer URL. For larger files, zip <label>/before.<ext> and <label>/after.<ext> yourself and use get_upload_url.',
+      inputSchema: z.object({
+        project: z.string().describe('Project id or slug. Unknown slugs are created.'),
+        name: z
+          .string()
+          .describe('Name of the comparison, e.g. checkout-redesign. Saved as a zip.'),
+        pairs: z
+          .array(
+            z.object({
+              label: z
+                .string()
+                .regex(
+                  /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$/,
+                  'Use letters, digits, space, dot, dash.',
+                )
+                .describe('Heading for this pair, e.g. login-page.'),
+              format: z
+                .enum(['png', 'jpg', 'webp', 'gif', 'mp4', 'webm'])
+                .describe('File format of both files in this pair.'),
+              beforeBase64: z.string().describe('The before file bytes, base64.'),
+              afterBase64: z.string().describe('The after file bytes, base64.'),
+            }),
+          )
+          .min(1)
+          .max(20)
+          .describe('Pairs in display order. Images and videos can mix.'),
+        ttl: z.number().int().positive().optional().describe('Retention in seconds, max 90 days.'),
+      }),
+    },
+    ({ project, name, pairs, ttl }) =>
+      runTool(
+        runtime,
+        Effect.gen(function* () {
+          const labels = new Set(pairs.map((p) => p.label))
+          if (labels.size !== pairs.length) {
+            return yield* new BadRequest({ message: 'Pair labels must be unique.' })
           }
-          const projects = yield* Projects
-          const target = yield* projects.resolve(userId, project)
-          const ttlSeconds = yield* resolveTtl({
-            userId,
-            projectTtlSeconds: target.ttlSeconds,
-            ttlSeconds: ttl,
-          })
-          const artifacts = yield* Artifacts
-          const result = yield* artifacts.upload({
-            userId,
-            projectId: target.id,
-            name,
-            size: bytes.byteLength,
-            body: new Blob([bytes]).stream(),
-            ttlSeconds,
-            uploadedBy: 'mcp',
-          })
-          return { id: result.id, url: `${origin}/a/${result.id}`, expiresAt: result.expiresAt }
+          const files = []
+          for (const [i, pair] of pairs.entries()) {
+            const before = yield* inlineFile(pair.beforeBase64, `pairs[${i}].beforeBase64`)
+            const after = yield* inlineFile(pair.afterBase64, `pairs[${i}].afterBase64`)
+            files.push(
+              { name: `${pair.label}/before.${pair.format}`, bytes: before },
+              { name: `${pair.label}/after.${pair.format}`, bytes: after },
+            )
+          }
+          const bytes = buildStoredZip(files)
+          const zipName = name.toLowerCase().endsWith('.zip') ? name : `${name}.zip`
+          return yield* uploadInline(userId, origin, { project, name: zipName, bytes, ttl })
         }),
       ),
   )

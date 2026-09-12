@@ -1,9 +1,20 @@
 import { Link, createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Download04Icon, File02Icon, PackageOpenIcon } from '@hugeicons/core-free-icons'
+import {
+  Download04Icon,
+  File02Icon,
+  PackageOpenIcon,
+  PauseIcon,
+  PlayIcon,
+  VolumeHighIcon,
+  VolumeOffIcon,
+} from '@hugeicons/core-free-icons'
+import type { ComparePair } from '@artifacts/api'
+import { useEffect, useRef, useState } from 'react'
 import { AppHeader, PageBody, type BackLink } from '#/components/app-shell'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { Slider } from '#/components/ui/slider'
 import {
   Empty,
   EmptyContent,
@@ -139,6 +150,14 @@ function Preview({ artifact, src }: { artifact: ArtifactView; src: string }) {
           className="h-[80svh] w-full rounded-lg bg-white ring-1 ring-foreground/10"
         />
       )
+    case 'compare':
+      return artifact.compare ? (
+        <div className="flex flex-col gap-8">
+          {artifact.compare.map((pair) => (
+            <PairPreview key={pair.label} artifact={artifact} pair={pair} />
+          ))}
+        </div>
+      ) : null
     case 'bundle':
       return (
         <ItemGroup className="gap-0 divide-y overflow-hidden rounded-lg border">
@@ -174,4 +193,157 @@ function Preview({ artifact, src }: { artifact: ArtifactView; src: string }) {
         </Empty>
       )
   }
+}
+
+interface Side {
+  label: string
+  src: string
+}
+
+function PairPreview({ artifact, pair }: { artifact: ArtifactView; pair: ComparePair }) {
+  const sides: Side[] = [
+    { label: 'Before', src: fileUrl(artifact, pair.before) },
+    { label: 'After', src: fileUrl(artifact, pair.after) },
+  ]
+  return (
+    <section className="flex flex-col gap-3">
+      {pair.label ? <h2 className="text-sm font-semibold">{pair.label}</h2> : null}
+      {pair.media === 'image' ? <ImagePair sides={sides} /> : <VideoPair sides={sides} />}
+    </section>
+  )
+}
+
+function SideLabel({ label }: { label: string }) {
+  return <Badge variant={label === 'Before' ? 'outline' : 'secondary'}>{label}</Badge>
+}
+
+function ImagePair({ sides }: { sides: Side[] }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {sides.map((side) => (
+        <figure key={side.label} className="flex min-w-0 flex-col gap-2">
+          <figcaption>
+            <SideLabel label={side.label} />
+          </figcaption>
+          <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+            <img src={side.src} alt={side.label} className="max-h-[70svh] max-w-full rounded-md" />
+          </div>
+        </figure>
+      ))}
+    </div>
+  )
+}
+
+function formatTime(seconds: number) {
+  const whole = Math.floor(seconds)
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}
+
+// Two players driven by one control bar. Play, pause, and the scrubber act
+// on both; the timeline spans the longer of the two.
+function VideoPair({ sides }: { sides: Side[] }) {
+  const refs = useRef<(HTMLVideoElement | null)[]>([])
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(true)
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  function videos() {
+    return refs.current.filter((v): v is HTMLVideoElement => v !== null)
+  }
+
+  function readDuration() {
+    setDuration(Math.max(0, ...videos().map((v) => (Number.isFinite(v.duration) ? v.duration : 0))))
+  }
+
+  useEffect(() => {
+    if (!playing) return
+    let frame = requestAnimationFrame(function tick() {
+      setTime(Math.max(0, ...refs.current.map((v) => v?.currentTime ?? 0)))
+      frame = requestAnimationFrame(tick)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [playing])
+
+  function seek(value: number) {
+    for (const v of videos()) {
+      v.currentTime = Number.isFinite(v.duration) ? Math.min(value, v.duration) : value
+    }
+    setTime(value)
+  }
+
+  function play() {
+    if (duration > 0 && time >= duration - 0.05) seek(0)
+    setPlaying(true)
+    for (const v of videos()) void v.play().catch(() => setPlaying(false))
+  }
+
+  function pause() {
+    for (const v of videos()) v.pause()
+    setPlaying(false)
+  }
+
+  function onEnded() {
+    if (videos().every((v) => v.ended || v.paused)) {
+      setPlaying(false)
+      setTime(duration)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {sides.map((side, index) => (
+          <figure key={side.label} className="flex min-w-0 flex-col gap-2">
+            <figcaption>
+              <SideLabel label={side.label} />
+            </figcaption>
+            <video
+              ref={(el) => {
+                refs.current[index] = el
+              }}
+              src={side.src}
+              muted={muted}
+              playsInline
+              preload="metadata"
+              onLoadedMetadata={readDuration}
+              onEnded={onEnded}
+              onClick={playing ? pause : play}
+              className="max-h-[70svh] w-full cursor-pointer rounded-lg bg-black"
+            />
+          </figure>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 rounded-lg border bg-card px-2 py-1.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={playing ? pause : play}
+          aria-label={playing ? 'Pause both' : 'Play both'}
+        >
+          <HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} strokeWidth={2} />
+        </Button>
+        <span className="w-9 text-xs text-muted-foreground tabular-nums">{formatTime(time)}</span>
+        <Slider
+          aria-label="Timeline for both videos"
+          value={[Math.min(time, duration)]}
+          max={duration || 1}
+          step={0.01}
+          onValueChange={([value]) => seek(value ?? 0)}
+          className="flex-1"
+        />
+        <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
+          {formatTime(duration)}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMuted((m) => !m)}
+          aria-label={muted ? 'Unmute both' : 'Mute both'}
+        >
+          <HugeiconsIcon icon={muted ? VolumeOffIcon : VolumeHighIcon} strokeWidth={2} />
+        </Button>
+      </div>
+    </div>
+  )
 }

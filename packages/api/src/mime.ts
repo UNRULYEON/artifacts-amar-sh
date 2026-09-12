@@ -1,4 +1,4 @@
-export type Kind = 'image' | 'video' | 'bundle' | 'page' | 'file'
+export type Kind = 'image' | 'video' | 'bundle' | 'compare' | 'page' | 'file'
 
 const kinds: Record<string, Kind> = {
   png: 'image',

@@ -51,7 +51,7 @@ export const artifact = sqliteTable(
       .notNull()
       .references(() => project.id),
     name: text('name').notNull(),
-    kind: text('kind', { enum: ['image', 'video', 'bundle', 'page', 'file'] }).notNull(),
+    kind: text('kind', { enum: ['image', 'video', 'bundle', 'compare', 'page', 'file'] }).notNull(),
     size: integer('size').notNull(),
     r2Key: text('r2_key').notNull(),
     rootPath: text('root_path').notNull().default(''),

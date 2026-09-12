@@ -21,7 +21,7 @@ Host for CI and agent artifacts (screenshots, videos, Playwright-style HTML repo
 - Organizations, roles, invites, membership ACLs
 - More than one human account (signup is owner-only, see Auth)
 - Per-project tokens or clients as a first-class concept
-- Search, grouping by PR/commit, compare, pin, favorites
+- Search, grouping by PR/commit, pin, favorites
 - Public no-login share links
 - Direct R2 / presigned bucket URLs
 - Unpacking zips into many R2 objects (zips stay as one object, see Upload)
@@ -122,7 +122,7 @@ Single internal function for HTTP, signed upload URLs, and MCP inline uploads.
 - `Content-Length` is required. Chunked uploads get `411`.
 - R2 is private. No public bucket, no presigned URLs, no client access to the bucket.
 - Accept a single file (screenshot, video, log, anything) or a zip. Zips are **stored as one object**, never unpacked into R2.
-- `kind` is derived from the file name extension (`png/jpg/webp/gif` → image, `mp4/webm` → video, `zip` → bundle, `html` → page, else → file). Never trust the client `Content-Type`.
+- `kind` is derived from the file name extension (`png/jpg/webp/gif` → image, `mp4/webm` → video, `zip` → bundle, `html` → page, else → file). Never trust the client `Content-Type`. A zip whose entries are only `before.<ext>` and `after.<ext>`, at the root or one folder per pair, each pair both images or both videos, becomes `compare`.
 - Optional metadata if cheap: commit SHA, PR number. Not required.
 - Record which token or MCP client uploaded, for the list view.
 
@@ -151,6 +151,7 @@ Single internal function for HTTP, signed upload URLs, and MCP inline uploads.
 - **Screenshot** — in-browser image + download
 - **Video** — in-browser player (range requests) + download
 - **HTML report** — served from the zip as a static site (`index.html` + assets)
+- **Before / after** — a zip with only `before.<ext>` and `after.<ext>` entries, one pair at the root or one folder per pair; each pair both images or both videos, shown side by side with shared video controls
 - Everything else — download original
 
 ---

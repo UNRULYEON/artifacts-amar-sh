@@ -1,10 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
+import type { ComparePair } from '@artifacts/api'
 
 export interface ArtifactView {
   id: string
   name: string
-  kind: 'image' | 'video' | 'bundle' | 'page' | 'file'
+  kind: 'image' | 'video' | 'bundle' | 'compare' | 'page' | 'file'
   size: number
   createdAt: string
   expiresAt: string
@@ -13,6 +14,8 @@ export interface ArtifactView {
   base: string
   files: { path: string; size: number }[]
   hasIndex: boolean
+  // Set for kind compare: the pairs in display order.
+  compare: ComparePair[] | null
 }
 
 export const getArtifact = createServerFn({ method: 'GET' })

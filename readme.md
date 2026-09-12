@@ -140,6 +140,16 @@ PUT /u/:ticket                      raw body, Content-Length required
 
 A ticket lives ten minutes, works once, and is bound to the project, the file name, and the token that minted it, which becomes the artifact's uploader. The ticket is claimed before the bytes are read, so an upload that fails after the length check needs a new ticket. A used, expired, or unknown ticket answers `404`.
 
+### Before and after
+
+A zip whose entries are only `before.<ext>` and `after.<ext>` gets kind `compare`, and the viewer shows each pair side by side. One pair sits at the root; several pairs sit one folder deep, one folder per pair, and the folder name is the heading. Each pair is both images (`png/jpg/jpeg/webp/gif`) or both videos (`mp4/webm`); pairs may mix. Video pairs share one control bar: play, pause, mute and a scrubber act on both. Any upload path works; the MCP tool `upload_comparison` builds the zip for you.
+
+```sh
+zip -0 checkout.zip login/before.png login/after.png pay/before.mp4 pay/after.mp4
+curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" --data-binary @checkout.zip \
+  "https://artifacts.amar.sh/api/upload?project=web&name=checkout.zip"
+```
+
 Zips stay one R2 object. The Worker range-reads the central directory and stores one `artifact_file` row per entry. Rules: stored or deflate only, no Zip64, no encryption, at most 5000 entries, paths that stay inside the root. A folder that holds every entry and an `index.html` becomes `rootPath`. A zip that breaks a rule is `400` and nothing is kept.
 
 ```sh
@@ -150,7 +160,7 @@ curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" \
 
 ## Viewer
 
-Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends you to `/login?redirect=/a/:id` and back. With a session it signs a one hour link and renders the viewer (image, video, single page in a sandboxed iframe, or a file list for a bundle without `index.html`). A bundle with `index.html` redirects straight to it.
+Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends you to `/login?redirect=/a/:id` and back. With a session it signs a one hour link and renders the viewer (image, video, a before and after pair side by side, single page in a sandboxed iframe, or a file list for a bundle without `index.html`). A bundle with `index.html` redirects straight to it.
 
 `GET /r/:id/<exp>.<sig>/<path>` serves the bytes. No cookie is read. `sig` is an HMAC over `id.exp` with a key derived from `BETTER_AUTH_SECRET`, so there is no second secret to set. An expired or bad link answers `403` with a link back to `/a/:id`, which re-signs it.
 
@@ -177,7 +187,7 @@ Agents connect to `https://artifacts.amar.sh/mcp` (streamable HTTP, `POST` only)
 - Discovery: `/.well-known/oauth-protected-resource/mcp` names the authorization server `https://artifacts.amar.sh/api/auth`, whose metadata lives at `/.well-known/oauth-authorization-server/api/auth`. JWKS is `/api/auth/jwks`.
 - Client registration is CIMD only: the client's `client_id` is the HTTPS URL of its metadata document. Dynamic Client Registration stays off. `MCP_CLIENT_ORIGINS` (optional var, comma-separated origins) restricts which metadata hosts may register; unset allows any HTTPS document.
 - Flow: the client is sent to `/login`, GitHub signs you in, `/consent` asks once, and the client gets a token bound to the `/mcp` resource. Tokens act as you across every project.
-- Tools: `discover` (how it works, limits, projects), `get_upload_url` (a ten minute one-use `PUT` URL plus a ready `curl`, for files up to 100MB), and `upload` (inline base64, up to 2MB). Uploads from MCP show as `MCP` in the dashboard.
+- Tools: `discover` (how it works, limits, projects), `get_upload_url` (a ten minute one-use `PUT` URL plus a ready `curl`, for files up to 100MB), `upload` (inline base64, up to 2MB), and `upload_comparison` (one or more before and after pairs, inline base64, up to 2MB per file, packed into a zip by the server). Uploads from MCP show as `MCP` in the dashboard.
 - CORS is open on `/mcp`, `/.well-known/*`, `/api/auth/oauth2/*`, and `/api/auth/jwks` for browser-based clients.
 
 Claude Code:

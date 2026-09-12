@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
+  ArrowLeftRightIcon,
   BrowserIcon,
   Delete02Icon,
   File02Icon,
@@ -40,6 +41,7 @@ const kindIcons: Record<ArtifactSummary['kind'], typeof File02Icon> = {
   video: Video01Icon,
   page: BrowserIcon,
   bundle: Zip01Icon,
+  compare: ArrowLeftRightIcon,
   file: File02Icon,
 }
 
