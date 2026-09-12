@@ -48,6 +48,8 @@ export interface ArtifactSummary {
 
 export interface Uploaded {
   id: string
+  kind: ArtifactRow['kind']
+  name: string
   expiresAt: string
 }
 
@@ -141,7 +143,12 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
             expiresAt,
           })
           yield* insertFiles(id, entries)
-          return { id, expiresAt: expiresAt.toISOString() } satisfies Uploaded
+          return {
+            id,
+            kind: stored,
+            name: input.name,
+            expiresAt: expiresAt.toISOString(),
+          } satisfies Uploaded
         })
 
         // Any failure after the put leaves no orphan bytes behind.

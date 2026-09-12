@@ -118,7 +118,7 @@ Authorization: Bearer art_...
 Content-Length: <bytes>
 ```
 
-The raw file is the body. No multipart. The Worker streams it to R2, then writes the metadata to D1 and answers `201` with `{ id, url, expiresAt }`. The `url` is the viewer link on the same host.
+The raw file is the body. No multipart. The Worker streams it to R2, then writes the metadata to D1 and answers `201` with `{ id, url, expiresAt, embedUrl? }`. The `url` is the viewer link on the same host. Images and videos also get `embedUrl`: a link to the bytes under `/r/` that needs no login and stays valid until the artifact expires. Paste it as `![name](embedUrl)` in a GitHub pull request to show the image inline. GitHub does not play external videos; the link still opens the file. The viewer page has an "Embed link" button that copies the same link.
 
 - `project` is a project id or a slug. An unknown slug creates the project.
 - `name` sets the `kind` (`png/jpg/webp/gif` image, `mp4/webm` video, `zip` bundle, `html` page, else file) and the download name.
@@ -162,7 +162,7 @@ curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" \
 
 Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends you to `/login?redirect=/a/:id` and back. With a session it signs a one hour link and renders the viewer (image, video, a before and after pair side by side, single page in a sandboxed iframe, or a file list for a bundle without `index.html`). A bundle with `index.html` redirects straight to it.
 
-`GET /r/:id/<exp>.<sig>/<path>` serves the bytes. No cookie is read. `sig` is an HMAC over `id.exp` with a key derived from `BETTER_AUTH_SECRET`, so there is no second secret to set. An expired or bad link answers `403` with a link back to `/a/:id`, which re-signs it.
+`GET /r/:id/<exp>.<sig>/<path>` serves the bytes. No cookie is read. `sig` is an HMAC over `id.exp` with a key derived from `BETTER_AUTH_SECRET`, so there is no second secret to set. Viewer links live an hour. Embed links for images and videos sign `id.exp.embed` with `exp` at the artifact's expiry, so a viewer link cannot be stretched and an embed link dies with the artifact. An expired or bad link answers `403` with a link back to `/a/:id`, which re-signs it.
 
 Every `/r/*` response carries `Content-Security-Policy: sandbox allow-scripts` and `nosniff`, so report scripts run in an opaque origin and cannot reach cookies, the dashboard, or the API. `Range` requests get `206` on single files and on stored zip entries. Deflated entries are inflated with `DecompressionStream` on the fly. Paths inside a bundle are relative to `rootPath`. Add `?download` for an attachment disposition.
 

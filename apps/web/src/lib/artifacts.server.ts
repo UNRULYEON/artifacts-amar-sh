@@ -1,14 +1,22 @@
-import { Artifacts, Auth, Projects, Signer, comparePairs, getRuntime } from '@artifacts/api'
+import {
+  Artifacts,
+  Auth,
+  Projects,
+  Signer,
+  comparePairs,
+  embedUrl,
+  getRuntime,
+} from '@artifacts/api'
 import { env } from 'cloudflare:workers'
 import { Effect } from 'effect'
 import type { ArtifactView } from './artifacts'
 
 // The viewer gate: a session is required, ownership is not checked.
-export function readArtifact(headers: Headers, id: string): Promise<ArtifactView | null> {
+export function readArtifact(request: Request, id: string): Promise<ArtifactView | null> {
   return getRuntime(env).runPromise(
     Effect.gen(function* () {
       const auth = yield* Auth
-      if (!(yield* auth.session(headers))) return null
+      if (!(yield* auth.session(request.headers))) return null
       const artifacts = yield* Artifacts
       const artifact = yield* artifacts
         .get(id)
@@ -44,6 +52,7 @@ export function readArtifact(headers: Headers, id: string): Promise<ArtifactView
         files,
         hasIndex: files.some((f) => f.path === 'index.html'),
         compare: artifact.kind === 'compare' ? comparePairs(entries) : null,
+        embedUrl: yield* embedUrl(new URL(request.url).origin, artifact),
       }
     }),
   )

@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 import { BadRequest, LengthRequired, PayloadTooLarge } from '../errors'
+import { embedUrl } from '../embed'
 import type { Route } from '../http'
 import { DEFAULT_TTL_SECONDS, MAX_UPLOAD_BYTES } from '../limits'
 import { Artifacts, type Uploaded } from '../services/artifacts'
@@ -53,11 +54,18 @@ export function resolveTtl(
   })
 }
 
+// The body every upload path answers with. embedUrl is set for images and videos.
+export function uploadResult(origin: string, result: Uploaded) {
+  return Effect.map(embedUrl(origin, result), (embed) => ({
+    id: result.id,
+    url: `${origin}/a/${result.id}`,
+    expiresAt: result.expiresAt,
+    ...(embed ? { embedUrl: embed } : {}),
+  }))
+}
+
 export function created(origin: string, result: Uploaded) {
-  return Response.json(
-    { id: result.id, url: `${origin}/a/${result.id}`, expiresAt: result.expiresAt },
-    { status: 201 },
-  )
+  return Effect.map(uploadResult(origin, result), (body) => Response.json(body, { status: 201 }))
 }
 
 function streamUpload(request: Request, target: UploadTarget) {
@@ -75,7 +83,7 @@ function streamUpload(request: Request, target: UploadTarget) {
       ttlSeconds,
       uploadedBy: target.uploadedBy,
     })
-    return created(new URL(request.url).origin, result)
+    return yield* created(new URL(request.url).origin, result)
   })
 }
 

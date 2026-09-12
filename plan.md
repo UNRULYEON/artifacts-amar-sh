@@ -22,7 +22,7 @@ Host for CI and agent artifacts (screenshots, videos, Playwright-style HTML repo
 - More than one human account (signup is owner-only, see Auth)
 - Per-project tokens or clients as a first-class concept
 - Search, grouping by PR/commit, pin, favorites
-- Public no-login share links
+- Public no-login share links, except the embed link for images and videos below
 - Direct R2 / presigned bucket URLs
 - Unpacking zips into many R2 objects (zips stay as one object, see Upload)
 - Billing, quotas as a product, webhooks, GitHub PR bots
@@ -173,6 +173,7 @@ Two layers: an app-origin **gate** and a sandboxed **byte prefix**.
 - Valid signature → serve. **No cookie is read on this route.** Expired or bad signature → `403` with a link back to `/a/:id` (which re-signs after a session check).
 - Relative asset paths inside a report resolve within the prefix, so Playwright reports work unchanged.
 - Single-file artifacts use `<path>` = the file name.
+- **Embed links.** Images and videos get a second signature over `id.exp.embed` with `exp` at the artifact's expiry. Returned as `embedUrl` on every upload path and copied from the viewer. It needs no cookie, so GitHub can render it in a PR, and it dies with the artifact.
 - Bundle entries: one R2 range `get` for the entry bytes, then `DecompressionStream('deflate-raw')` for method 8. No unzip library.
 
 ### Response headers on `/r/*`
