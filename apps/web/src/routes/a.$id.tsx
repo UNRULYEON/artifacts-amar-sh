@@ -234,6 +234,10 @@ function ImagePair({ sides }: { sides: Side[] }) {
   )
 }
 
+function longest(videos: (HTMLVideoElement | null)[]) {
+  return Math.max(0, ...videos.map((v) => (v && Number.isFinite(v.duration) ? v.duration : 0)))
+}
+
 function formatTime(seconds: number) {
   const whole = Math.floor(seconds)
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
@@ -253,8 +257,13 @@ function VideoPair({ sides }: { sides: Side[] }) {
   }
 
   function readDuration() {
-    setDuration(Math.max(0, ...videos().map((v) => (Number.isFinite(v.duration) ? v.duration : 0))))
+    setDuration(longest(refs.current))
   }
+
+  // Metadata can arrive before hydration, so the event above is not enough.
+  useEffect(() => {
+    setDuration(longest(refs.current))
+  }, [])
 
   useEffect(() => {
     if (!playing) return
@@ -309,7 +318,7 @@ function VideoPair({ sides }: { sides: Side[] }) {
               onLoadedMetadata={readDuration}
               onEnded={onEnded}
               onClick={playing ? pause : play}
-              className="max-h-[70svh] w-full cursor-pointer rounded-lg bg-black"
+              className="max-h-[70svh] w-full cursor-pointer rounded-lg bg-black ring-1 ring-foreground/10"
             />
           </figure>
         ))}
