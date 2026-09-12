@@ -8,6 +8,7 @@ import { contentTypeFor, kindFor } from '../mime'
 import {
   EOCD_TAIL_BYTES,
   ZipError,
+  comparePairs,
   detectRoot,
   findCentralDirectory,
   parseEntries,
@@ -122,6 +123,7 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
 
         const record = Effect.gen(function* () {
           const entries = kind === 'bundle' ? yield* indexZip(key, input.size) : []
+          const stored = kind === 'bundle' && comparePairs(entries) ? 'compare' : kind
           const ttl = clampTtl(input.ttlSeconds)
           const now = new Date()
           const expiresAt = new Date(now.getTime() + ttl * 1000)
@@ -130,7 +132,7 @@ export class Artifacts extends Effect.Service<Artifacts>()('@artifacts/api/Artif
             userId: input.userId,
             projectId: input.projectId,
             name: input.name,
-            kind,
+            kind: stored,
             size: input.size,
             r2Key: key,
             rootPath: detectRoot(entries),

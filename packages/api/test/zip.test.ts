@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import {
   ZipError,
+  buildStoredZip,
+  comparePairs,
+  crc32Of,
   detectRoot,
   findCentralDirectory,
   localHeaderSize,
@@ -96,5 +99,66 @@ describe('localHeaderSize', () => {
     const zip = buildZip([{ name: 'abc.txt', data: 'data' }])
     expect(localHeaderSize(zip.subarray(0, 30))).toBe(37)
     expect(zip.subarray(37, 41)).toEqual(new TextEncoder().encode('data'))
+  })
+})
+
+describe('comparePairs', () => {
+  test('accepts one pair at the root', () => {
+    expect(comparePairs(stubEntries('before.png', 'after.png'))).toEqual([
+      { label: '', before: 'before.png', after: 'after.png', media: 'image' },
+    ])
+    expect(comparePairs(stubEntries('after.webm', 'before.mp4'))?.[0]?.media).toBe('video')
+    expect(comparePairs(stubEntries('before.jpg', 'after.webp'))?.[0]?.media).toBe('image')
+  })
+
+  test('accepts one folder per pair, mixed media, in natural order', () => {
+    const pairs = comparePairs(
+      stubEntries(
+        '10-checkout/before.mp4',
+        '2-login/after.png',
+        '10-checkout/after.webm',
+        '2-login/before.png',
+      ),
+    )
+    expect(pairs?.map((p) => [p.label, p.media])).toEqual([
+      ['2-login', 'image'],
+      ['10-checkout', 'video'],
+    ])
+  })
+
+  test.each([
+    [[]],
+    [['before.png', 'after.mp4']],
+    [['before.png', 'after.png', 'notes.txt']],
+    [['before.png']],
+    [['a/before.png', 'a/after.png', 'b/before.png']],
+    [['x/y/before.png', 'x/y/after.png']],
+    [['before.txt', 'after.txt']],
+    [['old.png', 'new.png']],
+    [['before', 'after']],
+  ])('rejects %j', (paths) => {
+    expect(comparePairs(stubEntries(...paths))).toBeNull()
+  })
+})
+
+describe('buildStoredZip', () => {
+  test('writes a zip the reader parses back with correct sizes and checksums', () => {
+    const encoder = new TextEncoder()
+    const zip = buildStoredZip([
+      { name: 'before.png', bytes: encoder.encode('123456789') },
+      { name: 'after.png', bytes: encoder.encode('') },
+    ])
+    const entries = parse(zip)
+    expect(entries.map((e) => e.path)).toEqual(['before.png', 'after.png'])
+    expect(entries[0]).toMatchObject({ size: 9, compressedSize: 9, method: 0, crc32: 0xcbf43926 })
+    expect(entries[1]).toMatchObject({ size: 0, crc32: 0 })
+    const dataStart = entries[0]!.offset + localHeaderSize(zip.subarray(entries[0]!.offset))
+    expect(zip.subarray(dataStart, dataStart + 9)).toEqual(encoder.encode('123456789'))
+    expect(comparePairs(entries)?.[0]?.media).toBe('image')
+  })
+
+  test('crc32 matches the reference vector', () => {
+    expect(crc32Of(new TextEncoder().encode('123456789'))).toBe(0xcbf43926)
+    expect(crc32Of(new Uint8Array())).toBe(0)
   })
 })

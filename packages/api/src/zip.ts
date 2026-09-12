@@ -1,4 +1,5 @@
 import { MAX_CENTRAL_DIRECTORY_BYTES, MAX_ZIP_ENTRIES } from './limits'
+import { kindFor } from './mime'
 
 // Minimal reader for the zip central directory. Only stored (0) and deflate
 // (8) entries, no Zip64, no encryption. Everything else throws ZipError.
@@ -136,4 +137,109 @@ export function localHeaderSize(header: Uint8Array): number {
     throw new ZipError('Corrupt zip local header.')
   }
   return LOCAL_HEADER_MIN + dv.getUint16(26, true) + dv.getUint16(28, true)
+}
+
+export interface ComparePair {
+  // Folder name, or '' for a pair at the zip root.
+  label: string
+  before: string
+  after: string
+  media: 'image' | 'video'
+}
+
+// A zip whose entries are all `before.<ext>` or `after.<ext>`, at the root or
+// one folder deep, is a set of comparisons shown side by side. Each folder is
+// one pair, both images or both videos. Pairs may mix media.
+export function comparePairs(entries: ZipEntry[]): ComparePair[] | null {
+  if (entries.length === 0) return null
+  const groups = new Map<string, { before?: string; after?: string }>()
+  for (const entry of entries) {
+    const slash = entry.path.lastIndexOf('/')
+    const label = slash === -1 ? '' : entry.path.slice(0, slash)
+    if (label.includes('/')) return null
+    const base = entry.path.slice(slash + 1)
+    const stem = base.slice(0, base.lastIndexOf('.'))
+    if (stem !== 'before' && stem !== 'after') return null
+    const group = groups.get(label) ?? {}
+    if (group[stem]) return null
+    group[stem] = entry.path
+    groups.set(label, group)
+  }
+  const labels = [...groups.keys()].toSorted((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+  const pairs: ComparePair[] = []
+  for (const label of labels) {
+    const { before, after } = groups.get(label)!
+    if (!before || !after) return null
+    const media = kindFor(before)
+    if ((media !== 'image' && media !== 'video') || kindFor(after) !== media) return null
+    pairs.push({ label, before, after, media })
+  }
+  return pairs
+}
+
+const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
+  let c = n
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+  return c >>> 0
+})
+
+export function crc32Of(bytes: Uint8Array): number {
+  let crc = 0xffffffff
+  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff]! ^ (crc >>> 8)
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+export interface ZipFile {
+  name: string
+  bytes: Uint8Array
+}
+
+// Writes a stored (method 0) zip. Used when the server packs files itself.
+export function buildStoredZip(files: ZipFile[]): Uint8Array<ArrayBuffer> {
+  const encoder = new TextEncoder()
+  const parts: Uint8Array[] = []
+  const central: Uint8Array[] = []
+  let offset = 0
+  for (const file of files) {
+    const name = encoder.encode(file.name)
+    const checksum = crc32Of(file.bytes)
+    const local = new Uint8Array(LOCAL_HEADER_MIN + name.byteLength)
+    const dv = view(local)
+    dv.setUint32(0, LOCAL_SIG, true)
+    dv.setUint16(4, 20, true)
+    dv.setUint32(14, checksum, true)
+    dv.setUint32(18, file.bytes.byteLength, true)
+    dv.setUint32(22, file.bytes.byteLength, true)
+    dv.setUint16(26, name.byteLength, true)
+    local.set(name, LOCAL_HEADER_MIN)
+    const header = new Uint8Array(CENTRAL_MIN + name.byteLength)
+    const cv = view(header)
+    cv.setUint32(0, CENTRAL_SIG, true)
+    cv.setUint16(4, 20, true)
+    cv.setUint16(6, 20, true)
+    cv.setUint32(16, checksum, true)
+    cv.setUint32(20, file.bytes.byteLength, true)
+    cv.setUint32(24, file.bytes.byteLength, true)
+    cv.setUint16(28, name.byteLength, true)
+    cv.setUint32(42, offset, true)
+    header.set(name, CENTRAL_MIN)
+    parts.push(local, file.bytes)
+    central.push(header)
+    offset += local.byteLength + file.bytes.byteLength
+  }
+  const centralSize = central.reduce((n, c) => n + c.byteLength, 0)
+  const eocd = new Uint8Array(EOCD_MIN)
+  const ev = view(eocd)
+  ev.setUint32(0, EOCD_SIG, true)
+  ev.setUint16(8, files.length, true)
+  ev.setUint16(10, files.length, true)
+  ev.setUint32(12, centralSize, true)
+  ev.setUint32(16, offset, true)
+  const out = new Uint8Array(offset + centralSize + EOCD_MIN)
+  let pos = 0
+  for (const part of [...parts, ...central, eocd]) {
+    out.set(part, pos)
+    pos += part.byteLength
+  }
+  return out
 }

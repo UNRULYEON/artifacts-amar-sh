@@ -1,4 +1,4 @@
-import { Artifacts, Auth, Projects, Signer, getRuntime } from '@artifacts/api'
+import { Artifacts, Auth, Projects, Signer, comparePairs, getRuntime } from '@artifacts/api'
 import { env } from 'cloudflare:workers'
 import { Effect } from 'effect'
 import type { ArtifactView } from './artifacts'
@@ -21,7 +21,8 @@ export function readArtifact(headers: Headers, id: string): Promise<ArtifactView
         .pipe(Effect.catchTag('NotFound', () => Effect.succeed(null)))
       const signer = yield* Signer
       const token = yield* signer.sign(id)
-      const entries = artifact.kind === 'bundle' ? yield* artifacts.files(id) : []
+      const entries =
+        artifact.kind === 'bundle' || artifact.kind === 'compare' ? yield* artifacts.files(id) : []
       const prefix = artifact.rootPath === '' ? '' : `${artifact.rootPath}/`
       const files = entries
         .filter((e) => e.path.startsWith(prefix))
@@ -42,6 +43,7 @@ export function readArtifact(headers: Headers, id: string): Promise<ArtifactView
         base: `/r/${id}/${token}`,
         files,
         hasIndex: files.some((f) => f.path === 'index.html'),
+        compare: artifact.kind === 'compare' ? comparePairs(entries) : null,
       }
     }),
   )
