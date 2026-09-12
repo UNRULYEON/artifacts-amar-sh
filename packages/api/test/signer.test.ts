@@ -27,6 +27,31 @@ describe('makeSigner', () => {
   })
 })
 
+describe('embed tokens', () => {
+  test('live until the artifact expires and never past it', async () => {
+    const signer = await makeSigner('test-secret')
+    const expiresAt = new Date(now + 30 * 86_400_000)
+    const token = await signer.signEmbed('art_1', expiresAt)
+    expect(await signer.verify('art_1', token, now)).toBe(true)
+    expect(await signer.verify('art_1', token, now + 29 * 86_400_000)).toBe(true)
+    expect(await signer.verify('art_1', token, expiresAt.getTime() + 1)).toBe(false)
+    expect(await signer.verify('art_2', token, now)).toBe(false)
+  })
+
+  test('a viewer token cannot be stretched and an embed token is not a viewer token', async () => {
+    const signer = await makeSigner('test-secret')
+    const view = await signer.sign('art_1', now)
+    const [, viewSig] = view.split('.') as [string, string]
+    const farExp = Math.floor(now / 1000) + 30 * 86_400
+    expect(await signer.verify('art_1', `${farExp}.${viewSig}`, now)).toBe(false)
+    const embed = await signer.signEmbed('art_1', new Date(now + 30 * 60_000))
+    const [embedExp, embedSig] = embed.split('.') as [string, string]
+    expect(await signer.verify('art_1', embed, now)).toBe(true)
+    expect(embedExp).toBe(String(Math.floor((now + 30 * 60_000) / 1000)))
+    expect(await signer.verify('art_1', `${embedExp}.${embedSig.slice(1)}A`, now)).toBe(false)
+  })
+})
+
 describe('base64url', () => {
   test('round trips bytes of every length mod 3', () => {
     for (const length of [0, 1, 2, 3, 4, 31, 32]) {

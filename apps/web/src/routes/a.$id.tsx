@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import {
   Download04Icon,
   File02Icon,
+  Link04Icon,
   PackageOpenIcon,
   PauseIcon,
   PlayIcon,
@@ -11,6 +12,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import type { ComparePair } from '@artifacts/api'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { AppHeader, PageBody, type BackLink } from '#/components/app-shell'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -99,12 +101,15 @@ function Viewer() {
         back={backLink(artifact)}
         user={session.user}
         actions={
-          <Button variant="outline" asChild>
-            <a href={`${src}?download`}>
-              <HugeiconsIcon icon={Download04Icon} strokeWidth={2} data-icon="inline-start" />
-              Download
-            </a>
-          </Button>
+          <>
+            {artifact.embedUrl ? <CopyEmbedLink url={artifact.embedUrl} /> : null}
+            <Button variant="outline" asChild>
+              <a href={`${src}?download`}>
+                <HugeiconsIcon icon={Download04Icon} strokeWidth={2} data-icon="inline-start" />
+                Download
+              </a>
+            </Button>
+          </>
         }
       />
       <PageBody width="wide">
@@ -121,6 +126,24 @@ function Viewer() {
         <Preview artifact={artifact} src={src} />
       </PageBody>
     </>
+  )
+}
+
+// The bytes link needs no login and lives until the artifact expires.
+function CopyEmbedLink({ url }: { url: string }) {
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Embed link copied. Paste it as ![name](link) in Markdown.')
+    } catch {
+      toast.error('Could not copy the link.')
+    }
+  }
+  return (
+    <Button variant="outline" onClick={copy}>
+      <HugeiconsIcon icon={Link04Icon} strokeWidth={2} data-icon="inline-start" />
+      Embed link
+    </Button>
   )
 }
 

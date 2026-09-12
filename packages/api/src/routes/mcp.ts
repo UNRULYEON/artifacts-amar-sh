@@ -13,7 +13,7 @@ import { Projects } from '../services/projects'
 import { Tickets } from '../services/tickets'
 import { fromBase64url } from '../encoding'
 import { buildStoredZip } from '../zip'
-import { resolveTtl } from './upload'
+import { resolveTtl, uploadResult } from './upload'
 
 // Stateless streamable HTTP MCP. One server per request, bound to the user
 // from the access token. Tools act as that user across all projects.
@@ -95,7 +95,7 @@ function uploadInline(
       ttlSeconds,
       uploadedBy: 'mcp',
     })
-    return { id: result.id, url: `${origin}/a/${result.id}`, expiresAt: result.expiresAt }
+    return yield* uploadResult(origin, result)
   })
 }
 
@@ -124,6 +124,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
               `Files up to ${MCP_INLINE_MAX_BYTES} bytes: call upload with contentBase64.`,
               `Larger files up to ${MAX_UPLOAD_BYTES} bytes: call get_upload_url, then run the returned curl in a shell.`,
               'The response url opens in a browser after GitHub login. Bundles (zip with index.html) open as a site.',
+              'Images and videos also return embedUrl: a link to the bytes that needs no login and lives as long as the artifact. Paste it as ![name](embedUrl) in a GitHub pull request to show the image inline. GitHub does not play external videos; the link still opens the file.',
               'Before and after: call upload_comparison with one or more pairs, or upload a zip whose entries are only before.<ext> and after.<ext>, at the root or one folder per pair. Each pair is both images or both videos; pairs may mix. They are shown side by side.',
             ],
             uploadTicketShape: `curl -X PUT --data-binary @<file> ${origin}/u/<ticket>`,
@@ -162,7 +163,8 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
   server.registerTool(
     'upload',
     {
-      description: 'Upload a small file (up to 2MB) inline. Returns the viewer URL.',
+      description:
+        'Upload a small file (up to 2MB) inline. Returns the viewer URL, plus embedUrl for images and videos.',
       inputSchema: z.object({
         project: z.string().describe('Project id or slug. Unknown slugs are created.'),
         name: z.string().describe('File name with extension, e.g. screenshot.png'),

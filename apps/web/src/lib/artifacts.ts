@@ -16,11 +16,13 @@ export interface ArtifactView {
   hasIndex: boolean
   // Set for kind compare: the pairs in display order.
   compare: ComparePair[] | null
+  // Cookie-free link to the bytes for images and videos, valid until expiry.
+  embedUrl: string | null
 }
 
 export const getArtifact = createServerFn({ method: 'GET' })
   .validator((id: string) => id)
   .handler(async ({ data: id }): Promise<ArtifactView | null> => {
     const { readArtifact } = await import('./artifacts.server')
-    return readArtifact(getRequest().headers, id)
+    return readArtifact(getRequest(), id)
   })
