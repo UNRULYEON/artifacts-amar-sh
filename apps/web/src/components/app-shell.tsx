@@ -119,7 +119,7 @@ export function PageBody({ width = 'default', children }: { width?: Width; child
   return (
     <main
       className={cn(
-        'mx-auto flex w-full flex-col gap-8 px-safe-area-4 pt-6 pb-safe-area-12 sm:px-safe-area-6',
+        't-page-enter mx-auto flex w-full flex-col gap-8 px-safe-area-4 pt-6 pb-safe-area-12 sm:px-safe-area-6',
         widths[width],
       )}
     >

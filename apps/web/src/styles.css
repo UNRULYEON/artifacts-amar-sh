@@ -196,3 +196,121 @@ body {
 ::view-transition-new(root) {
   animation-duration: 300ms;
 }
+
+/* Motion tokens, from the transitions skill. Match on usage, not on the number. */
+:root {
+  --duration-stagger: 40ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 350ms;
+  --duration-slow: 400ms;
+  --duration-very-slow: 500ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --scale-large: 0.96;
+  --scale-medium: 0.97;
+  --scale-tiny: 0.99;
+  --distance-micro: 4px;
+  --distance-medium: 12px;
+  --blur-small: 2px;
+  --blur-medium: 3px;
+}
+
+/* Page content rises in after a navigation. No blur: the page can hold video and iframes. */
+@keyframes t-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-micro));
+  }
+}
+.t-page-enter {
+  animation: t-page-enter var(--duration-slow) var(--ease-in-out) both;
+}
+
+/* Texts reveal: list rows and empty states rise in with a short stagger. The
+   total stays under 300ms, so rows past the eighth share the last delay. */
+@keyframes t-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-medium));
+    filter: blur(var(--blur-medium));
+  }
+}
+[data-slot='item-group'] > [data-slot='item'],
+[data-slot='empty-header'] > *,
+[data-slot='empty-content'] {
+  animation: t-rise var(--duration-very-slow) var(--ease-smooth-out) both;
+  animation-delay: calc(var(--duration-stagger) * var(--t-i, 0));
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(2),
+[data-slot='empty-header'] > :nth-child(2) {
+  --t-i: 1;
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(3),
+[data-slot='empty-header'] > :nth-child(3) {
+  --t-i: 2;
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(4),
+[data-slot='empty-content'] {
+  --t-i: 3;
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(5) {
+  --t-i: 4;
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(6) {
+  --t-i: 5;
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(7) {
+  --t-i: 6;
+}
+[data-slot='item-group'] > [data-slot='item']:nth-child(n + 8) {
+  --t-i: 7;
+}
+
+/* Toasts rise in over the toast duration with the shared curve. Sonner keeps
+   its own quicker fade-out and its reduced-motion guard. */
+[data-sonner-toast] {
+  transition:
+    transform var(--duration-medium) var(--ease-smooth-out),
+    opacity var(--duration-medium) var(--ease-smooth-out),
+    height var(--duration-medium) var(--ease-smooth-out),
+    box-shadow 200ms;
+}
+
+/* Icon swap: two icons in one slot cross-fade with blur and scale. */
+.t-icon-swap {
+  position: relative;
+  display: inline-grid;
+}
+.t-icon-swap .t-icon {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    filter var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-in-out);
+  will-change: opacity, filter, transform;
+}
+.t-icon-swap[data-state='a'] .t-icon[data-icon='a'],
+.t-icon-swap[data-state='b'] .t-icon[data-icon='b'] {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+.t-icon-swap[data-state='a'] .t-icon[data-icon='b'],
+.t-icon-swap[data-state='b'] .t-icon[data-icon='a'] {
+  opacity: 0;
+  filter: blur(var(--blur-small));
+  transform: scale(0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-page-enter,
+  [data-slot='item-group'] > [data-slot='item'],
+  [data-slot='empty-header'] > *,
+  [data-slot='empty-content'] {
+    animation: none !important;
+  }
+  .t-icon-swap .t-icon {
+    transition: none !important;
+  }
+}

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import type { Token } from '@artifacts/api'
 import { ConfirmDialog } from '#/components/confirm-dialog'
+import { IconSwap } from '#/components/icon-swap'
 import { FormError } from '#/components/form-error'
 import { Button } from '#/components/ui/button'
 import {
@@ -155,7 +156,7 @@ function SecretField({ secret }: { secret: string }) {
       />
       <InputGroupAddon align="inline-end">
         <InputGroupButton size="icon-xs" onClick={copy} aria-label="Copy token">
-          <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={2} />
+          <IconSwap state={copied ? 'b' : 'a'} a={Copy01Icon} b={Tick02Icon} />
         </InputGroupButton>
       </InputGroupAddon>
     </InputGroup>
