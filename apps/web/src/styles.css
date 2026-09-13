@@ -207,6 +207,7 @@ body {
   --duration-very-slow: 500ms;
   --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: ease-in-out;
+  --ease-out: ease-out;
   --scale-large: 0.96;
   --scale-medium: 0.97;
   --scale-tiny: 0.99;

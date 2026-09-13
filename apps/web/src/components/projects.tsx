@@ -11,6 +11,7 @@ import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import type { Project } from '@artifacts/api'
 import { ConfirmDialog } from '#/components/confirm-dialog'
+import { Tip } from '#/components/tip'
 import { FormError } from '#/components/form-error'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -219,11 +220,13 @@ function ProjectRow({ project }: { project: Project }) {
           {ttlLabel(project.ttlSeconds)}
         </Badge>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`Actions for ${project.name}`}>
-              <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} />
-            </Button>
-          </DropdownMenuTrigger>
+          <Tip label="Actions">
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={`Actions for ${project.name}`}>
+                <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tip>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={() => setDialog('edit')}>

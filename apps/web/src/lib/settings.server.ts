@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers'
 import { Effect } from 'effect'
 import type { SettingsView } from './settings'
 
-export function readSettingsView(headers: Headers): Promise<SettingsView | null> {
+export function readSettingsView(headers: Headers): Promise<Omit<SettingsView, 'origin'> | null> {
   return getRuntime(env).runPromise(
     Effect.gen(function* () {
       const auth = yield* Auth

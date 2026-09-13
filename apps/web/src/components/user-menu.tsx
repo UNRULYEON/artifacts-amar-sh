@@ -7,6 +7,7 @@ import {
   Settings01Icon,
   Sun03Icon,
 } from '@hugeicons/core-free-icons'
+import { Tip } from '#/components/tip'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import { Button } from '#/components/ui/button'
 import {
@@ -54,14 +55,16 @@ export function UserMenu({ user }: UserMenuProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-lg" className="rounded-full" aria-label="Account menu">
-          <Avatar>
-            <AvatarImage src={user.image ?? undefined} alt="" />
-            <AvatarFallback>{initials(user.name)}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
+      <Tip label="Account">
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-lg" className="rounded-full" aria-label="Account menu">
+            <Avatar>
+              <AvatarImage src={user.image ?? undefined} alt="" />
+              <AvatarFallback>{initials(user.name)}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+      </Tip>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center gap-3 font-normal">
           <Avatar>

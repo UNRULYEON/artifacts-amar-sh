@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import type { ArtifactSummary } from '@artifacts/api'
 import { ConfirmDialog } from '#/components/confirm-dialog'
+import { Tip } from '#/components/tip'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
@@ -93,11 +94,13 @@ function ArtifactRow({ artifact }: { artifact: ArtifactSummary }) {
           {artifact.kind}
         </Badge>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`Actions for ${artifact.name}`}>
-              <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} />
-            </Button>
-          </DropdownMenuTrigger>
+          <Tip label="Actions">
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={`Actions for ${artifact.name}`}>
+                <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tip>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={copyUrl}>

@@ -4,6 +4,7 @@ import {
   Download04Icon,
   File02Icon,
   Link04Icon,
+  LinkSquare02Icon,
   PackageOpenIcon,
   PauseIcon,
   PlayIcon,
@@ -15,6 +16,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppHeader, PageBody, type BackLink } from '#/components/app-shell'
 import { IconSwap } from '#/components/icon-swap'
+import { Tip } from '#/components/tip'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Slider } from '#/components/ui/slider'
@@ -47,10 +49,6 @@ export const Route = createFileRoute('/a/$id')({
   async loader({ params }) {
     const artifact = await getArtifact({ data: params.id })
     if (!artifact) throw notFound()
-    // Reports open as a site under the signed prefix.
-    if (artifact.kind === 'bundle' && artifact.hasIndex) {
-      throw redirect({ href: `${artifact.base}/index.html`, reloadDocument: true })
-    }
     return artifact
   },
   head: ({ loaderData }) => ({
@@ -92,6 +90,9 @@ function Viewer() {
   const { session } = Route.useRouteContext()
   const artifact = Route.useLoaderData()
   const src = fileUrl(artifact, artifact.name)
+  // A report keeps the app bar, so an installed app always has a way back.
+  const report =
+    artifact.kind === 'bundle' && artifact.hasIndex ? `${artifact.base}/index.html` : null
 
   return (
     <>
@@ -104,6 +105,14 @@ function Viewer() {
         actions={
           <>
             {artifact.embedUrl ? <CopyEmbedLink url={artifact.embedUrl} /> : null}
+            {report ? (
+              <Button variant="outline" asChild>
+                <a href={report} target="_blank" rel="noreferrer">
+                  <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} data-icon="inline-start" />
+                  Open
+                </a>
+              </Button>
+            ) : null}
             <Button variant="outline" asChild>
               <a href={`${src}?download`}>
                 <HugeiconsIcon icon={Download04Icon} strokeWidth={2} data-icon="inline-start" />
@@ -113,19 +122,28 @@ function Viewer() {
           </>
         }
       />
-      <PageBody width="wide">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className="capitalize">
-            {artifact.kind}
-          </Badge>
-          <span>{formatBytes(artifact.size)}</span>
-          <span aria-hidden="true">·</span>
-          <span>Uploaded {formatDate(artifact.createdAt)}</span>
-          <span aria-hidden="true">·</span>
-          <span>Expires {formatDate(artifact.expiresAt)}</span>
-        </div>
-        <Preview artifact={artifact} src={src} />
-      </PageBody>
+      {report ? (
+        <iframe
+          src={report}
+          title={artifact.name}
+          sandbox="allow-scripts allow-popups allow-downloads allow-forms"
+          className="block h-[calc(100svh-var(--header-height))] w-full bg-white"
+        />
+      ) : (
+        <PageBody width="wide">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline" className="capitalize">
+              {artifact.kind}
+            </Badge>
+            <span>{formatBytes(artifact.size)}</span>
+            <span aria-hidden="true">·</span>
+            <span>Uploaded {formatDate(artifact.createdAt)}</span>
+            <span aria-hidden="true">·</span>
+            <span>Expires {formatDate(artifact.expiresAt)}</span>
+          </div>
+          <Preview artifact={artifact} src={src} />
+        </PageBody>
+      )}
     </>
   )
 }
@@ -348,14 +366,16 @@ function VideoPair({ sides }: { sides: Side[] }) {
         ))}
       </div>
       <div className="flex items-center gap-2 rounded-lg border bg-card px-2 py-1.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={playing ? pause : play}
-          aria-label={playing ? 'Pause both' : 'Play both'}
-        >
-          <IconSwap state={playing ? 'b' : 'a'} a={PlayIcon} b={PauseIcon} />
-        </Button>
+        <Tip label={playing ? 'Pause both' : 'Play both'}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={playing ? pause : play}
+            aria-label={playing ? 'Pause both' : 'Play both'}
+          >
+            <IconSwap state={playing ? 'b' : 'a'} a={PlayIcon} b={PauseIcon} />
+          </Button>
+        </Tip>
         <span className="w-9 text-xs text-muted-foreground tabular-nums">{formatTime(time)}</span>
         <Slider
           aria-label="Timeline for both videos"
@@ -368,14 +388,16 @@ function VideoPair({ sides }: { sides: Side[] }) {
         <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
           {formatTime(duration)}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMuted((m) => !m)}
-          aria-label={muted ? 'Unmute both' : 'Mute both'}
-        >
-          <IconSwap state={muted ? 'a' : 'b'} a={VolumeOffIcon} b={VolumeHighIcon} />
-        </Button>
+        <Tip label={muted ? 'Unmute both' : 'Mute both'}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMuted((m) => !m)}
+            aria-label={muted ? 'Unmute both' : 'Mute both'}
+          >
+            <IconSwap state={muted ? 'a' : 'b'} a={VolumeOffIcon} b={VolumeHighIcon} />
+          </Button>
+        </Tip>
       </div>
     </div>
   )

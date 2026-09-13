@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { Token } from '@artifacts/api'
 import { ConfirmDialog } from '#/components/confirm-dialog'
 import { IconSwap } from '#/components/icon-swap'
+import { Tip } from '#/components/tip'
 import { FormError } from '#/components/form-error'
 import { Button } from '#/components/ui/button'
 import {
@@ -155,9 +156,11 @@ function SecretField({ secret }: { secret: string }) {
         onFocus={(e) => e.currentTarget.select()}
       />
       <InputGroupAddon align="inline-end">
-        <InputGroupButton size="icon-xs" onClick={copy} aria-label="Copy token">
-          <IconSwap state={copied ? 'b' : 'a'} a={Copy01Icon} b={Tick02Icon} />
-        </InputGroupButton>
+        <Tip label="Copy token">
+          <InputGroupButton size="icon-xs" onClick={copy} aria-label="Copy token">
+            <IconSwap state={copied ? 'b' : 'a'} a={Copy01Icon} b={Tick02Icon} />
+          </InputGroupButton>
+        </Tip>
       </InputGroupAddon>
     </InputGroup>
   )

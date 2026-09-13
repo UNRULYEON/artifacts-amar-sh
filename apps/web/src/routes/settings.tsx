@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { AppHeader, PageBody, Section } from '#/components/app-shell'
+import { McpSetup } from '#/components/mcp-setup'
 import { RetentionForm } from '#/components/retention-form'
 import { CreateTokenButton, TokenList } from '#/components/tokens'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
@@ -34,7 +35,7 @@ export const Route = createFileRoute('/settings')({
 
 function Settings() {
   const { session } = Route.useRouteContext()
-  const { settings, tokens } = Route.useLoaderData()
+  const { settings, tokens, origin } = Route.useLoaderData()
   const { artifacts, bytes } = settings.usage
 
   return (
@@ -83,6 +84,13 @@ function Settings() {
           action={tokens.length > 0 ? <CreateTokenButton /> : null}
         >
           <TokenList tokens={tokens} />
+        </Section>
+
+        <Section
+          title="MCP"
+          description="Agents connect once with OAuth and can upload to every project."
+        >
+          <McpSetup origin={origin} />
         </Section>
       </PageBody>
     </>

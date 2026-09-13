@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 import type { ReactNode } from 'react'
 import { cn } from 'cn'
+import { Tip } from '#/components/tip'
 import { Button } from '#/components/ui/button'
 import { Item, ItemContent, ItemGroup, ItemMedia } from '#/components/ui/item'
 import { Skeleton } from '#/components/ui/skeleton'
@@ -31,17 +32,19 @@ interface AppHeaderProps {
 
 function BackButton({ back }: { back: BackLink }) {
   return (
-    <Button variant="ghost" size="icon" asChild className="-ml-1.5 shrink-0">
-      {back.to === '/' ? (
-        <Link to="/" aria-label={back.label}>
-          <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-        </Link>
-      ) : (
-        <Link to={back.to} params={back.params} aria-label={back.label}>
-          <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-        </Link>
-      )}
-    </Button>
+    <Tip label={back.label}>
+      <Button variant="ghost" size="icon" asChild className="-ml-1.5 shrink-0">
+        {back.to === '/' ? (
+          <Link to="/" aria-label={back.label}>
+            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+          </Link>
+        ) : (
+          <Link to={back.to} params={back.params} aria-label={back.label}>
+            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+          </Link>
+        )}
+      </Button>
+    </Tip>
   )
 }
 
