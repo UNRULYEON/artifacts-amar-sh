@@ -389,7 +389,7 @@ function ImagePair({ sides, diff }: { sides: Side[]; diff: string | null }) {
 }
 
 // Before and after in one frame. The after image is clipped at the handle;
-// drag on the image or use the slider below it.
+// drag on the image, or focus it and use the arrow keys.
 function SwipePair({ sides }: { sides: Side[] }) {
   const [before, after] = sides as [Side, Side]
   const [position, setPosition] = useState(50)
@@ -401,52 +401,67 @@ function SwipePair({ sides }: { sides: Side[] }) {
     setPosition(Math.min(100, Math.max(0, ((event.clientX - rect.left) / rect.width) * 100)))
   }
 
+  function nudge(event: React.KeyboardEvent) {
+    const step = event.shiftKey ? 10 : 2
+    const delta =
+      event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+        ? -step
+        : event.key === 'ArrowRight' || event.key === 'ArrowUp'
+          ? step
+          : event.key === 'Home'
+            ? -100
+            : event.key === 'End'
+              ? 100
+              : null
+    if (delta === null) return
+    event.preventDefault()
+    setPosition((current) => Math.min(100, Math.max(0, current + delta)))
+  }
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+    <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+      <div
+        ref={frame}
+        role="slider"
+        tabIndex={0}
+        aria-label="Reveal the after image"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(position)}
+        onKeyDown={nudge}
+        className="relative grid cursor-col-resize rounded-md outline-none select-none touch-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId)
+          track(event)
+        }}
+        onPointerMove={(event) => {
+          if (event.buttons) track(event)
+        }}
+      >
+        <img src={before.src} alt="Before" draggable={false} className={stacked} />
+        <img
+          src={after.src}
+          alt="After"
+          draggable={false}
+          className={stacked}
+          style={{ clipPath: `inset(0 0 0 ${position}%)` }}
+        />
+        <div className="pointer-events-none absolute top-2 left-2">
+          <Badge variant="secondary">Before</Badge>
+        </div>
+        <div className="pointer-events-none absolute top-2 right-2">
+          <Badge variant="secondary">After</Badge>
+        </div>
         <div
-          ref={frame}
-          className="relative grid cursor-col-resize touch-none select-none"
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId)
-            track(event)
-          }}
-          onPointerMove={(event) => {
-            if (event.buttons) track(event)
-          }}
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-background shadow-[0_0_0_1px_var(--color-foreground)]"
+          style={{ left: `${position}%` }}
         >
-          <img src={before.src} alt="Before" draggable={false} className={stacked} />
-          <img
-            src={after.src}
-            alt="After"
-            draggable={false}
-            className={stacked}
-            style={{ clipPath: `inset(0 0 0 ${position}%)` }}
-          />
-          <div className="pointer-events-none absolute top-2 left-2">
-            <Badge variant="secondary">Before</Badge>
-          </div>
-          <div className="pointer-events-none absolute top-2 right-2">
-            <Badge variant="secondary">After</Badge>
-          </div>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-background shadow-[0_0_0_1px_var(--color-foreground)]"
-            style={{ left: `${position}%` }}
-          >
-            <div className="absolute top-1/2 left-1/2 flex size-7 -translate-1/2 items-center justify-center rounded-full bg-background text-foreground ring-1 ring-foreground shadow-md">
-              <HugeiconsIcon icon={ArrowLeftRightIcon} strokeWidth={2} className="size-3.5" />
-            </div>
+          <div className="absolute top-1/2 left-1/2 flex size-7 -translate-1/2 items-center justify-center rounded-full bg-background text-foreground ring-1 ring-foreground shadow-md">
+            <HugeiconsIcon icon={ArrowLeftRightIcon} strokeWidth={2} className="size-3.5" />
           </div>
         </div>
       </div>
-      <Slider
-        aria-label="Reveal the after image"
-        value={[position]}
-        max={100}
-        step={0.5}
-        onValueChange={([value]) => setPosition(value ?? 50)}
-      />
     </div>
   )
 }
