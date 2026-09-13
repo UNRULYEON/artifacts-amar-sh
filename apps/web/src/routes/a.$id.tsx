@@ -1,6 +1,7 @@
 import { Link, createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
+  ArrowLeftRightIcon,
   Download04Icon,
   File02Icon,
   Link04Icon,
@@ -12,6 +13,7 @@ import {
   VolumeOffIcon,
 } from '@hugeicons/core-free-icons'
 import type { ComparePair } from '@artifacts/api'
+import { cn } from 'cn'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppHeader, PageBody, type BackLink } from '#/components/app-shell'
@@ -19,6 +21,7 @@ import { IconSwap } from '#/components/icon-swap'
 import { Tip } from '#/components/tip'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { Skeleton } from '#/components/ui/skeleton'
 import { Slider } from '#/components/ui/slider'
 import {
   Empty,
@@ -248,14 +251,34 @@ function PairPreview({ artifact, pair }: { artifact: ArtifactView; pair: Compare
     { label: 'After', src: fileUrl(artifact, pair.after) },
   ]
   const diff = pair.diff ? fileUrl(artifact, pair.diff) : null
+  const snapshot = pair.snapshot ? fileUrl(artifact, pair.snapshot) : null
+  const [view, setView] = useState<'side' | 'swipe'>('side')
   return (
     <section className="flex flex-col gap-3">
-      {pair.label ? <h2 className="text-sm font-semibold">{pair.label}</h2> : null}
-      {pair.media === 'image' ? (
+      {pair.label || pair.media === 'image' ? (
+        <div className="flex h-7 items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">{pair.label}</h2>
+          {pair.media === 'image' ? (
+            <Segmented
+              label="View"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'side', label: 'Side by side' },
+                { value: 'swipe', label: 'Swipe', tip: 'Drag to reveal the after image' },
+              ]}
+            />
+          ) : null}
+        </div>
+      ) : null}
+      {pair.media === 'video' ? (
+        <VideoPair sides={sides} />
+      ) : view === 'side' ? (
         <ImagePair sides={sides} diff={diff} />
       ) : (
-        <VideoPair sides={sides} />
+        <SwipePair sides={sides} />
       )}
+      {snapshot ? <SnapshotDiff src={snapshot} /> : null}
     </section>
   )
 }
@@ -264,39 +287,53 @@ function SideLabel({ label }: { label: string }) {
   return <Badge variant={label === 'Before' ? 'outline' : 'secondary'}>{label}</Badge>
 }
 
-const fade =
-  'max-h-[70svh] max-w-full rounded-md [grid-area:1/1] transition-opacity [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-in-out)] motion-reduce:transition-none'
+interface Option<T> {
+  value: T
+  label: string
+  tip?: string
+}
 
-// The after slot can swap to the diff image, so the eye stays in one place.
-function DiffSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+function Segmented<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: T
+  onChange: (value: T) => void
+  options: Option<T>[]
+}) {
   return (
-    <div
-      role="group"
-      aria-label="After view"
-      className="inline-flex rounded-md border bg-card p-0.5"
-    >
-      <Button
-        size="xs"
-        variant={on ? 'ghost' : 'secondary'}
-        aria-pressed={!on}
-        onClick={() => onChange(false)}
-      >
-        After
-      </Button>
-      <Tip label="Changed pixels in red">
-        <Button
-          size="xs"
-          variant={on ? 'secondary' : 'ghost'}
-          aria-pressed={on}
-          onClick={() => onChange(true)}
-        >
-          Diff
-        </Button>
-      </Tip>
+    <div role="group" aria-label={label} className="inline-flex rounded-md border bg-card p-0.5">
+      {options.map((option) => {
+        const button = (
+          <Button
+            key={option.value}
+            size="xs"
+            variant={option.value === value ? 'secondary' : 'ghost'}
+            aria-pressed={option.value === value}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </Button>
+        )
+        return option.tip ? (
+          <Tip key={option.value} label={option.tip}>
+            {button}
+          </Tip>
+        ) : (
+          button
+        )
+      })}
     </div>
   )
 }
 
+const stacked = 'max-h-[70svh] max-w-full rounded-md [grid-area:1/1]'
+const fade = `${stacked} transition-opacity [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-in-out)] motion-reduce:transition-none`
+
+// The after slot can swap to the diff image, so the eye stays in one place.
 function ImagePair({ sides, diff }: { sides: Side[]; diff: string | null }) {
   const [showDiff, setShowDiff] = useState(false)
   return (
@@ -307,7 +344,15 @@ function ImagePair({ sides, diff }: { sides: Side[]; diff: string | null }) {
           <figure key={side.label} className="flex min-w-0 flex-col gap-2">
             <figcaption className="flex h-7 items-center">
               {swappable ? (
-                <DiffSwitch on={showDiff} onChange={setShowDiff} />
+                <Segmented
+                  label="After view"
+                  value={showDiff ? 'diff' : 'after'}
+                  onChange={(v) => setShowDiff(v === 'diff')}
+                  options={[
+                    { value: 'after', label: 'After' },
+                    { value: 'diff', label: 'Diff', tip: 'Changed pixels in red' },
+                  ]}
+                />
               ) : (
                 <SideLabel label={side.label} />
               )}
@@ -340,6 +385,127 @@ function ImagePair({ sides, diff }: { sides: Side[]; diff: string | null }) {
         )
       })}
     </div>
+  )
+}
+
+// Before and after in one frame. The after image is clipped at the handle;
+// drag on the image or use the slider below it.
+function SwipePair({ sides }: { sides: Side[] }) {
+  const [before, after] = sides as [Side, Side]
+  const [position, setPosition] = useState(50)
+  const frame = useRef<HTMLDivElement>(null)
+
+  function track(event: React.PointerEvent) {
+    const rect = frame.current?.getBoundingClientRect()
+    if (!rect || rect.width === 0) return
+    setPosition(Math.min(100, Math.max(0, ((event.clientX - rect.left) / rect.width) * 100)))
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+        <div
+          ref={frame}
+          className="relative grid cursor-col-resize touch-none select-none"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId)
+            track(event)
+          }}
+          onPointerMove={(event) => {
+            if (event.buttons) track(event)
+          }}
+        >
+          <img src={before.src} alt="Before" draggable={false} className={stacked} />
+          <img
+            src={after.src}
+            alt="After"
+            draggable={false}
+            className={stacked}
+            style={{ clipPath: `inset(0 0 0 ${position}%)` }}
+          />
+          <div className="pointer-events-none absolute top-2 left-2">
+            <Badge variant="secondary">Before</Badge>
+          </div>
+          <div className="pointer-events-none absolute top-2 right-2">
+            <Badge variant="secondary">After</Badge>
+          </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-background shadow-[0_0_0_1px_var(--color-foreground)]"
+            style={{ left: `${position}%` }}
+          >
+            <div className="absolute top-1/2 left-1/2 flex size-7 -translate-1/2 items-center justify-center rounded-full bg-background text-foreground ring-1 ring-foreground shadow-md">
+              <HugeiconsIcon icon={ArrowLeftRightIcon} strokeWidth={2} className="size-3.5" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <Slider
+        aria-label="Reveal the after image"
+        value={[position]}
+        max={100}
+        step={0.5}
+        onValueChange={([value]) => setPosition(value ?? 50)}
+      />
+    </div>
+  )
+}
+
+function diffLineClass(line: string) {
+  if (
+    line.startsWith('+++') ||
+    line.startsWith('---') ||
+    line.startsWith('@@') ||
+    line.startsWith('\\')
+  ) {
+    return 'text-muted-foreground'
+  }
+  if (line.startsWith('+')) return 'bg-green-500/10 text-green-700 dark:text-green-400'
+  if (line.startsWith('-')) return 'bg-destructive/10 text-destructive'
+  return ''
+}
+
+// The accessibility tree diff from agent-browser, as a unified diff. The
+// summary line at the end is lifted into the heading.
+function SnapshotDiff({ src }: { src: string }) {
+  const [text, setText] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    fetch(src)
+      .then((res) => (res.ok ? res.text() : Promise.reject(new Error(res.statusText))))
+      .then((body) => {
+        if (live) setText(body)
+      })
+      .catch(() => {
+        if (live) setFailed(true)
+      })
+    return () => {
+      live = false
+    }
+  }, [src])
+
+  if (failed) return null
+  if (text === null) return <Skeleton className="h-10 w-full rounded-lg" />
+  const lines = text.replace(/\n+$/, '').split('\n')
+  const summary = /^\d+ additions?, \d+ removals?/.test(lines.at(-1) ?? '') ? lines.pop() : null
+  // Lines repeat, so the position is part of the key; the list never reorders.
+  const rows = lines.map((line, position) => ({ line, key: `${position}:${line}` }))
+  return (
+    <details className="rounded-lg border bg-card">
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs select-none">
+        <span className="font-medium">Accessibility tree diff</span>
+        {summary ? <span className="text-muted-foreground">{summary}</span> : null}
+      </summary>
+      <pre className="overflow-x-auto border-t px-3 py-2 font-mono text-xs leading-5">
+        {rows.map((row) => (
+          <span key={row.key} className={cn('block px-1 -mx-1', diffLineClass(row.line))}>
+            {row.line || ' '}
+          </span>
+        ))}
+      </pre>
+    </details>
   )
 }
 
