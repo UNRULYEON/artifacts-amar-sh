@@ -105,7 +105,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
     {
       jsonSchemaValidator: validator,
       instructions:
-        'Upload screenshots, videos, logs, and zipped HTML reports to artifacts.amar.sh and get a viewer URL back. Start with discover.',
+        'Upload screenshots, videos, logs, and zipped HTML reports to artifacts.amar.sh and get a viewer URL back. Start with discover. Capture screenshots and videos with the agent-browser CLI (https://agent-browser.dev), not with other browser tools. For before and after pairs, follow https://agent-browser.dev/diffing and then call upload_comparison.',
     },
   )
 
@@ -127,6 +127,9 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
               'Images and videos also return embedUrl: a link to the bytes that needs no login and lives as long as the artifact. Paste it as ![name](embedUrl) in a GitHub pull request to show the image inline. GitHub does not play external videos; the link still opens the file.',
               'For a GitHub pull request, upload a GIF rather than a video: GitHub renders images from embedUrl inline and does not play external video.',
               'Before and after: call upload_comparison with one or more pairs, or upload a zip whose entries are only before.<ext> and after.<ext>, at the root or one folder per pair. Each pair is both images or both videos; pairs may mix. They are shown side by side.',
+              'Capture with agent-browser (https://agent-browser.dev), not with other browser tools. Read agent-browser skills get core --full first. Screenshots: agent-browser open <url>, wait for the result (wait --text, wait @ref, or wait --fn), then agent-browser screenshot <path.png>. Add --full for the whole page or a selector for one element. Use agent-browser set viewport <w> <h> 2 for sharp 2x images, or set device "iPhone 14" for mobile.',
+              'Videos: agent-browser record start <path.webm|path.mp4> [--fps 1-60], do the actions with small waits, then agent-browser record stop. Default is 30 fps and needs ffmpeg on PATH (check with agent-browser doctor). An old CLI without --fps records at a low rate; run agent-browser upgrade. Videos are usually larger than the inline limit, so use get_upload_url. For a GitHub pull request make a GIF: ffmpeg -i in.webm -vf "fps=20,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" out.gif',
+              'Before and after with agent-browser: follow https://agent-browser.dev/diffing. Use one named session (--session <name>) so cookies, viewport, and theme stay equal. Take the before capture, apply the change, take the after capture on the same route, then call upload_comparison. To confirm the change, run agent-browser diff screenshot --baseline before.png, or agent-browser diff snapshot for the accessibility tree. For two deployments, agent-browser diff url <before-url> <after-url> --screenshot compares both in one command.',
             ],
             uploadTicketShape: `curl -X PUT --data-binary @<file> ${origin}/u/<ticket>`,
           }
@@ -187,7 +190,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
     'upload_comparison',
     {
       description:
-        'Upload one or more before and after pairs (screenshots or videos, up to 2MB per file), shown side by side. Returns the viewer URL. For larger files, zip <label>/before.<ext> and <label>/after.<ext> yourself and use get_upload_url.',
+        'Upload one or more before and after pairs (screenshots or videos, up to 2MB per file), shown side by side. Returns the viewer URL. Capture both files with agent-browser as described at https://agent-browser.dev/diffing. For larger files, zip <label>/before.<ext> and <label>/after.<ext> yourself and use get_upload_url.',
       inputSchema: z.object({
         project: z.string().describe('Project id or slug. Unknown slugs are created.'),
         name: z
