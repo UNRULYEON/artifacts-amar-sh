@@ -142,10 +142,10 @@ A ticket lives ten minutes, works once, and is bound to the project, the file na
 
 ### Before and after
 
-A zip whose entries are only `before.<ext>` and `after.<ext>` gets kind `compare`, and the viewer shows each pair side by side. One pair sits at the root; several pairs sit one folder deep, one folder per pair, and the folder name is the heading. Each pair is both images (`png/jpg/jpeg/webp/gif`) or both videos (`mp4/webm`); pairs may mix. Video pairs share one control bar: play, pause, mute and a scrubber act on both. Any upload path works; the MCP tool `upload_comparison` builds the zip for you.
+A zip whose entries are only `before.<ext>` and `after.<ext>` gets kind `compare`, and the viewer shows each pair side by side. One pair sits at the root; several pairs sit one folder deep, one folder per pair, and the folder name is the heading. Each pair is both images (`png/jpg/jpeg/webp/gif`) or both videos (`mp4/webm`); pairs may mix. An image pair may add `diff.<ext>`, an image that marks the changed pixels, for example from `agent-browser diff screenshot`; the viewer shows it with an After/Diff switch. Video pairs share one control bar: play, pause, mute and a scrubber act on both. Any upload path works; the MCP tool `upload_comparison` builds the zip for you and takes the diff as `diffBase64`.
 
 ```sh
-zip -0 checkout.zip login/before.png login/after.png pay/before.mp4 pay/after.mp4
+zip -0 checkout.zip login/before.png login/after.png login/diff.png pay/before.mp4 pay/after.mp4
 curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" --data-binary @checkout.zip \
   "https://artifacts.amar.sh/api/upload?project=web&name=checkout.zip"
 ```

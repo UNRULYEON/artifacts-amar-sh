@@ -247,10 +247,15 @@ function PairPreview({ artifact, pair }: { artifact: ArtifactView; pair: Compare
     { label: 'Before', src: fileUrl(artifact, pair.before) },
     { label: 'After', src: fileUrl(artifact, pair.after) },
   ]
+  const diff = pair.diff ? fileUrl(artifact, pair.diff) : null
   return (
     <section className="flex flex-col gap-3">
       {pair.label ? <h2 className="text-sm font-semibold">{pair.label}</h2> : null}
-      {pair.media === 'image' ? <ImagePair sides={sides} /> : <VideoPair sides={sides} />}
+      {pair.media === 'image' ? (
+        <ImagePair sides={sides} diff={diff} />
+      ) : (
+        <VideoPair sides={sides} />
+      )}
     </section>
   )
 }
@@ -259,19 +264,81 @@ function SideLabel({ label }: { label: string }) {
   return <Badge variant={label === 'Before' ? 'outline' : 'secondary'}>{label}</Badge>
 }
 
-function ImagePair({ sides }: { sides: Side[] }) {
+const fade =
+  'max-h-[70svh] max-w-full rounded-md [grid-area:1/1] transition-opacity [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-in-out)] motion-reduce:transition-none'
+
+// The after slot can swap to the diff image, so the eye stays in one place.
+function DiffSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="After view"
+      className="inline-flex rounded-md border bg-card p-0.5"
+    >
+      <Button
+        size="xs"
+        variant={on ? 'ghost' : 'secondary'}
+        aria-pressed={!on}
+        onClick={() => onChange(false)}
+      >
+        After
+      </Button>
+      <Tip label="Changed pixels in red">
+        <Button
+          size="xs"
+          variant={on ? 'secondary' : 'ghost'}
+          aria-pressed={on}
+          onClick={() => onChange(true)}
+        >
+          Diff
+        </Button>
+      </Tip>
+    </div>
+  )
+}
+
+function ImagePair({ sides, diff }: { sides: Side[]; diff: string | null }) {
+  const [showDiff, setShowDiff] = useState(false)
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {sides.map((side) => (
-        <figure key={side.label} className="flex min-w-0 flex-col gap-2">
-          <figcaption>
-            <SideLabel label={side.label} />
-          </figcaption>
-          <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
-            <img src={side.src} alt={side.label} className="max-h-[70svh] max-w-full rounded-md" />
-          </div>
-        </figure>
-      ))}
+      {sides.map((side) => {
+        const swappable = diff !== null && side.label === 'After'
+        return (
+          <figure key={side.label} className="flex min-w-0 flex-col gap-2">
+            <figcaption className="flex h-7 items-center">
+              {swappable ? (
+                <DiffSwitch on={showDiff} onChange={setShowDiff} />
+              ) : (
+                <SideLabel label={side.label} />
+              )}
+            </figcaption>
+            <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+              {swappable ? (
+                <div className="grid">
+                  <img
+                    src={side.src}
+                    alt="After"
+                    className={fade}
+                    style={{ opacity: showDiff ? 0 : 1 }}
+                  />
+                  <img
+                    src={diff}
+                    alt="Diff"
+                    className={fade}
+                    style={{ opacity: showDiff ? 1 : 0 }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={side.src}
+                  alt={side.label}
+                  className="max-h-[70svh] max-w-full rounded-md"
+                />
+              )}
+            </div>
+          </figure>
+        )
+      })}
     </div>
   )
 }

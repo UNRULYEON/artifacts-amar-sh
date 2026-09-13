@@ -144,22 +144,32 @@ export interface ComparePair {
   label: string
   before: string
   after: string
+  // Optional image that marks the changed pixels; image pairs only.
+  diff?: string
   media: 'image' | 'video'
+}
+
+const pairStems = ['before', 'after', 'diff'] as const
+type PairStem = (typeof pairStems)[number]
+
+function isPairStem(stem: string): stem is PairStem {
+  return (pairStems as readonly string[]).includes(stem)
 }
 
 // A zip whose entries are all `before.<ext>` or `after.<ext>`, at the root or
 // one folder deep, is a set of comparisons shown side by side. Each folder is
-// one pair, both images or both videos. Pairs may mix media.
+// one pair, both images or both videos. Pairs may mix media. An image pair may
+// add `diff.<ext>`, an image that marks the changed pixels.
 export function comparePairs(entries: ZipEntry[]): ComparePair[] | null {
   if (entries.length === 0) return null
-  const groups = new Map<string, { before?: string; after?: string }>()
+  const groups = new Map<string, Partial<Record<PairStem, string>>>()
   for (const entry of entries) {
     const slash = entry.path.lastIndexOf('/')
     const label = slash === -1 ? '' : entry.path.slice(0, slash)
     if (label.includes('/')) return null
     const base = entry.path.slice(slash + 1)
     const stem = base.slice(0, base.lastIndexOf('.'))
-    if (stem !== 'before' && stem !== 'after') return null
+    if (!isPairStem(stem)) return null
     const group = groups.get(label) ?? {}
     if (group[stem]) return null
     group[stem] = entry.path
@@ -168,11 +178,12 @@ export function comparePairs(entries: ZipEntry[]): ComparePair[] | null {
   const labels = [...groups.keys()].toSorted((a, b) => a.localeCompare(b, 'en', { numeric: true }))
   const pairs: ComparePair[] = []
   for (const label of labels) {
-    const { before, after } = groups.get(label)!
+    const { before, after, diff } = groups.get(label)!
     if (!before || !after) return null
     const media = kindFor(before)
     if ((media !== 'image' && media !== 'video') || kindFor(after) !== media) return null
-    pairs.push({ label, before, after, media })
+    if (diff && (media !== 'image' || kindFor(diff) !== 'image')) return null
+    pairs.push(diff ? { label, before, after, diff, media } : { label, before, after, media })
   }
   return pairs
 }

@@ -126,11 +126,34 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
               'The response url opens in a browser after GitHub login. Bundles (zip with index.html) open as a site.',
               'Images and videos also return embedUrl: a link to the bytes that needs no login and lives as long as the artifact. Paste it as ![name](embedUrl) in a GitHub pull request to show the image inline. GitHub does not play external videos; the link still opens the file.',
               'For a GitHub pull request, upload a GIF rather than a video: GitHub renders images from embedUrl inline and does not play external video.',
-              'Before and after: call upload_comparison with one or more pairs, or upload a zip whose entries are only before.<ext> and after.<ext>, at the root or one folder per pair. Each pair is both images or both videos; pairs may mix. They are shown side by side.',
+              'Before and after: call upload_comparison with one or more pairs, or upload a zip whose entries are only before.<ext> and after.<ext>, at the root or one folder per pair. Each pair is both images or both videos; pairs may mix. They are shown side by side. An image pair may add diff.<ext>, the image from agent-browser diff screenshot; the viewer then offers an After/Diff switch next to the after image.',
               'Capture with agent-browser (https://agent-browser.dev), not with other browser tools. Read agent-browser skills get core --full first. Screenshots: agent-browser open <url>, wait for the result (wait --text, wait @ref, or wait --fn), then agent-browser screenshot <path.png>. Add --full for the whole page or a selector for one element. Use agent-browser set viewport <w> <h> 2 for sharp 2x images, or set device "iPhone 14" for mobile.',
               'Videos: agent-browser record start <path.webm|path.mp4> [--fps 1-60], do the actions with small waits, then agent-browser record stop. Default is 30 fps and needs ffmpeg on PATH (check with agent-browser doctor). An old CLI without --fps records at a low rate; run agent-browser upgrade. Videos are usually larger than the inline limit, so use get_upload_url. For a GitHub pull request make a GIF: ffmpeg -i in.webm -vf "fps=20,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" out.gif',
-              'Before and after with agent-browser: follow https://agent-browser.dev/diffing. Use one named session (--session <name>) so cookies, viewport, and theme stay equal. Take the before capture, apply the change, take the after capture on the same route, then call upload_comparison. To confirm the change, run agent-browser diff screenshot --baseline before.png, or agent-browser diff snapshot for the accessibility tree. For two deployments, agent-browser diff url <before-url> <after-url> --screenshot compares both in one command.',
+              'Before and after with agent-browser: follow https://agent-browser.dev/diffing and the steps in comparisonRecipe below. Use one named session (--session <name>) so cookies, viewport, and theme stay equal. Take the before capture, apply the change, take the after capture on the same route, run the diff, then call upload_comparison with before, after, and diff. For the accessibility tree, agent-browser diff snapshot --baseline before.txt prints the changed lines. For two deployments, agent-browser diff url <before-url> <after-url> --screenshot compares both in one command.',
             ],
+            comparisonRecipe: {
+              steps: [
+                'export AGENT_BROWSER_SESSION=compare',
+                'agent-browser open <url> && agent-browser set viewport 1280 800 2 && agent-browser wait --text "<text on the page>"',
+                'agent-browser screenshot before.png',
+                '<apply the change: deploy, toggle a flag, or edit the page>',
+                'agent-browser open <url> && agent-browser wait --text "<text on the page>"',
+                'agent-browser screenshot after.png',
+                'agent-browser diff screenshot --baseline before.png --output diff.png',
+                'Call upload_comparison: { project, name: "<change>", pairs: [{ label: "<page>", format: "png", beforeBase64: <base64 of before.png>, afterBase64: <base64 of after.png>, diffBase64: <base64 of diff.png> }] }',
+                'agent-browser close',
+              ],
+              largeFiles: [
+                'When a file is over the inline limit, build the zip yourself and use get_upload_url. Entries: <label>/before.<ext>, <label>/after.<ext>, and optionally <label>/diff.<ext>, nothing else. One pair can sit at the root without a folder.',
+                'zip -0 <change>.zip <page>/before.png <page>/after.png <page>/diff.png',
+                'Then get_upload_url with name <change>.zip and run the returned curl.',
+              ],
+              formats: {
+                image: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+                video: ['mp4', 'webm'],
+                diff: 'An image, only on an image pair. agent-browser writes PNG.',
+              },
+            },
             uploadTicketShape: `curl -X PUT --data-binary @<file> ${origin}/u/<ticket>`,
           }
         }),
@@ -190,7 +213,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
     'upload_comparison',
     {
       description:
-        'Upload one or more before and after pairs (screenshots or videos, up to 2MB per file), shown side by side. Returns the viewer URL. Capture both files with agent-browser as described at https://agent-browser.dev/diffing. For larger files, zip <label>/before.<ext> and <label>/after.<ext> yourself and use get_upload_url.',
+        'Upload one or more before and after pairs (screenshots or videos, up to 2MB per file), shown side by side. An image pair may add a diff image that marks the changed pixels; the viewer shows it with an After/Diff switch. Returns the viewer URL. Capture the files with agent-browser as described at https://agent-browser.dev/diffing. For larger files, zip <label>/before.<ext>, <label>/after.<ext>, and optionally <label>/diff.png yourself and use get_upload_url.',
       inputSchema: z.object({
         project: z.string().describe('Project id or slug. Unknown slugs are created.'),
         name: z
@@ -211,6 +234,12 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
                 .describe('File format of both files in this pair.'),
               beforeBase64: z.string().describe('The before file bytes, base64.'),
               afterBase64: z.string().describe('The after file bytes, base64.'),
+              diffBase64: z
+                .string()
+                .optional()
+                .describe(
+                  'Optional PNG that marks the changed pixels, e.g. from agent-browser diff screenshot --baseline before.png --output diff.png. Image pairs only.',
+                ),
             }),
           )
           .min(1)
@@ -235,6 +264,15 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
               { name: `${pair.label}/before.${pair.format}`, bytes: before },
               { name: `${pair.label}/after.${pair.format}`, bytes: after },
             )
+            if (pair.diffBase64 !== undefined) {
+              if (pair.format === 'mp4' || pair.format === 'webm') {
+                return yield* new BadRequest({
+                  message: `pairs[${i}].diffBase64 is only for image pairs.`,
+                })
+              }
+              const diff = yield* inlineFile(pair.diffBase64, `pairs[${i}].diffBase64`)
+              files.push({ name: `${pair.label}/diff.png`, bytes: diff })
+            }
           }
           const bytes = buildStoredZip(files)
           const zipName = name.toLowerCase().endsWith('.zip') ? name : `${name}.zip`
