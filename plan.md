@@ -165,7 +165,7 @@ Two layers: an app-origin **gate** and a sandboxed **byte prefix**.
 - No session → redirect to GitHub login, then back here.
 - Session → mint a signature and:
   - image / video / file → render the HTML shell (viewer chrome, download button) with the media loaded from the signed prefix.
-  - bundle with `index.html` → `302` to `/r/:id/<exp>.<sig>/index.html`.
+  - bundle with `index.html` → the HTML shell with the report in a full-height sandboxed iframe under the app bar, plus an Open (new tab) button. The old `302` left an installed app without a way back.
 
 ### Bytes: `GET /r/:id/<exp>.<sig>/<path>`
 

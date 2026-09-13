@@ -160,7 +160,7 @@ curl -X POST -H "Authorization: Bearer $ARTIFACTS_TOKEN" \
 
 ## Viewer
 
-Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends you to `/login?redirect=/a/:id` and back. With a session it signs a one hour link and renders the viewer (image, video, a before and after pair side by side, single page in a sandboxed iframe, or a file list for a bundle without `index.html`). A bundle with `index.html` redirects straight to it.
+Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends you to `/login?redirect=/a/:id` and back. With a session it signs a one hour link and renders the viewer (image, video, a before and after pair side by side, single page in a sandboxed iframe, or a file list for a bundle without `index.html`). A bundle with `index.html` shows the report in a full-height frame under the app bar, with Open (new tab) and Download, so an installed app always has a way back.
 
 `GET /r/:id/<exp>.<sig>/<path>` serves the bytes. No cookie is read. `sig` is an HMAC over `id.exp` with a key derived from `BETTER_AUTH_SECRET`, so there is no second secret to set. Viewer links live an hour. Embed links for images and videos sign `id.exp.embed` with `exp` at the artifact's expiry, so a viewer link cannot be stretched and an embed link dies with the artifact. An expired or bad link answers `403` with a link back to `/a/:id`, which re-signs it.
 
@@ -190,11 +190,25 @@ Agents connect to `https://artifacts.amar.sh/mcp` (streamable HTTP, `POST` only)
 - Tools: `discover` (how it works, limits, projects), `get_upload_url` (a ten minute one-use `PUT` URL plus a ready `curl`, for files up to 100MB), `upload` (inline base64, up to 2MB), and `upload_comparison` (one or more before and after pairs, inline base64, up to 2MB per file, packed into a zip by the server). Uploads from MCP show as `MCP` in the dashboard.
 - CORS is open on `/mcp`, `/.well-known/*`, `/api/auth/oauth2/*`, and `/api/auth/jwks` for browser-based clients.
 
-Claude Code:
+### Connect a client
+
+The Settings page has the same snippets with copy buttons. Sign-in happens inside the client: GitHub, then one consent screen.
+
+Claude Code, for every project:
 
 ```sh
-claude mcp add --transport http artifacts https://artifacts.amar.sh/mcp
+claude mcp add --transport http --scope user artifacts https://artifacts.amar.sh/mcp
 ```
+
+Then run `/mcp` in a new session to sign in.
+
+Cursor, in `~/.cursor/mcp.json`:
+
+```json
+{ "mcpServers": { "artifacts": { "url": "https://artifacts.amar.sh/mcp" } } }
+```
+
+Any other client: give it `https://artifacts.amar.sh/mcp`. It must support OAuth with a URL `client_id` (CIMD). A client that only knows Dynamic Client Registration needs `allowDynamicClientRegistration` turned on in the auth config first.
 
 Schema: the plugin tables in `packages/db/src/auth-schema.ts` come from `bun run generate:auth` (in `packages/db`), which calls the Better Auth generator directly because the CLI's plugin init needs a live database. The four core tables are kept by hand so their SQL defaults survive.
 

@@ -4,6 +4,7 @@ import { CloudUploadIcon, Copy01Icon, FolderOpenIcon } from '@hugeicons/core-fre
 import { toast } from 'sonner'
 import { AppHeader, PageBody, Section } from '#/components/app-shell'
 import { ArtifactList } from '#/components/artifacts'
+import { Tip } from '#/components/tip'
 import { Button } from '#/components/ui/button'
 import {
   Empty,
@@ -110,9 +111,11 @@ function EmptyState({ origin, slug }: { origin: string; slug: string }) {
             <pre className="overflow-x-auto text-left font-mono text-xs/relaxed">{command}</pre>
           </ItemContent>
           <ItemActions>
-            <Button variant="ghost" size="icon-sm" onClick={copy} aria-label="Copy command">
-              <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} />
-            </Button>
+            <Tip label="Copy command">
+              <Button variant="ghost" size="icon-sm" onClick={copy} aria-label="Copy command">
+                <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} />
+              </Button>
+            </Tip>
           </ItemActions>
         </Item>
       </EmptyContent>
