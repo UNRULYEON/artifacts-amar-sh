@@ -146,44 +146,53 @@ export interface ComparePair {
   after: string
   // Optional image that marks the changed pixels; image pairs only.
   diff?: string
+  // Optional text diff of the accessibility tree (diff.txt); image pairs only.
+  snapshot?: string
   media: 'image' | 'video'
 }
 
-const pairStems = ['before', 'after', 'diff'] as const
-type PairStem = (typeof pairStems)[number]
+type PairKey = 'before' | 'after' | 'diff' | 'snapshot'
 
-function isPairStem(stem: string): stem is PairStem {
-  return (pairStems as readonly string[]).includes(stem)
+function pairKey(base: string): PairKey | null {
+  const dot = base.lastIndexOf('.')
+  const stem = base.slice(0, dot)
+  if (stem === 'before' || stem === 'after') return stem
+  if (stem !== 'diff') return null
+  return base.slice(dot + 1).toLowerCase() === 'txt' ? 'snapshot' : 'diff'
 }
 
 // A zip whose entries are all `before.<ext>` or `after.<ext>`, at the root or
 // one folder deep, is a set of comparisons shown side by side. Each folder is
 // one pair, both images or both videos. Pairs may mix media. An image pair may
-// add `diff.<ext>`, an image that marks the changed pixels.
+// add `diff.<ext>`, an image that marks the changed pixels, and `diff.txt`,
+// the text diff of the accessibility tree.
 export function comparePairs(entries: ZipEntry[]): ComparePair[] | null {
   if (entries.length === 0) return null
-  const groups = new Map<string, Partial<Record<PairStem, string>>>()
+  const groups = new Map<string, Partial<Record<PairKey, string>>>()
   for (const entry of entries) {
     const slash = entry.path.lastIndexOf('/')
     const label = slash === -1 ? '' : entry.path.slice(0, slash)
     if (label.includes('/')) return null
-    const base = entry.path.slice(slash + 1)
-    const stem = base.slice(0, base.lastIndexOf('.'))
-    if (!isPairStem(stem)) return null
+    const key = pairKey(entry.path.slice(slash + 1))
+    if (!key) return null
     const group = groups.get(label) ?? {}
-    if (group[stem]) return null
-    group[stem] = entry.path
+    if (group[key]) return null
+    group[key] = entry.path
     groups.set(label, group)
   }
   const labels = [...groups.keys()].toSorted((a, b) => a.localeCompare(b, 'en', { numeric: true }))
   const pairs: ComparePair[] = []
   for (const label of labels) {
-    const { before, after, diff } = groups.get(label)!
+    const { before, after, diff, snapshot } = groups.get(label)!
     if (!before || !after) return null
     const media = kindFor(before)
     if ((media !== 'image' && media !== 'video') || kindFor(after) !== media) return null
-    if (diff && (media !== 'image' || kindFor(diff) !== 'image')) return null
-    pairs.push(diff ? { label, before, after, diff, media } : { label, before, after, media })
+    if ((diff || snapshot) && media !== 'image') return null
+    if (diff && kindFor(diff) !== 'image') return null
+    const pair: ComparePair = { label, before, after, media }
+    if (diff) pair.diff = diff
+    if (snapshot) pair.snapshot = snapshot
+    pairs.push(pair)
   }
   return pairs
 }

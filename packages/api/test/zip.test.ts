@@ -136,10 +136,27 @@ describe('comparePairs', () => {
     expect(pairs?.map((p) => p.diff)).toEqual(['a/diff.webp', undefined])
   })
 
+  test('accepts an optional diff.txt snapshot diff on an image pair', () => {
+    expect(comparePairs(stubEntries('before.png', 'after.png', 'diff.txt', 'diff.png'))).toEqual([
+      {
+        label: '',
+        before: 'before.png',
+        after: 'after.png',
+        diff: 'diff.png',
+        snapshot: 'diff.txt',
+        media: 'image',
+      },
+    ])
+    expect(
+      comparePairs(stubEntries('a/before.png', 'a/after.png', 'a/diff.TXT'))?.[0],
+    ).toMatchObject({ snapshot: 'a/diff.TXT' })
+  })
+
   test.each([
     [[]],
     [['before.png', 'after.mp4']],
-    [['before.png', 'after.png', 'diff.txt']],
+    [['before.mp4', 'after.mp4', 'diff.txt']],
+    [['before.png', 'after.png', 'diff.txt', 'diff.md']],
     [['before.png', 'after.png', 'diff.mp4']],
     [['before.mp4', 'after.mp4', 'diff.png']],
     [['before.png', 'diff.png']],
