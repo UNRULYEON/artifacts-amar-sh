@@ -126,9 +126,23 @@ describe('comparePairs', () => {
     ])
   })
 
+  test('accepts an optional diff image on an image pair', () => {
+    expect(comparePairs(stubEntries('diff.png', 'after.png', 'before.png'))).toEqual([
+      { label: '', before: 'before.png', after: 'after.png', diff: 'diff.png', media: 'image' },
+    ])
+    const pairs = comparePairs(
+      stubEntries('a/before.png', 'a/after.png', 'a/diff.webp', 'b/before.png', 'b/after.png'),
+    )
+    expect(pairs?.map((p) => p.diff)).toEqual(['a/diff.webp', undefined])
+  })
+
   test.each([
     [[]],
     [['before.png', 'after.mp4']],
+    [['before.png', 'after.png', 'diff.txt']],
+    [['before.png', 'after.png', 'diff.mp4']],
+    [['before.mp4', 'after.mp4', 'diff.png']],
+    [['before.png', 'diff.png']],
     [['before.png', 'after.png', 'notes.txt']],
     [['before.png']],
     [['a/before.png', 'a/after.png', 'b/before.png']],
