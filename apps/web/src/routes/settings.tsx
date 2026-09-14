@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { AppHeader, PageBody, Section } from '#/components/app-shell'
+import { CompareRecipe } from '#/components/compare-recipe'
 import { McpSetup } from '#/components/mcp-setup'
 import { RetentionForm } from '#/components/retention-form'
 import { CreateTokenButton, TokenList } from '#/components/tokens'
@@ -91,6 +92,13 @@ function Settings() {
           description="Agents connect once with OAuth and can upload to every project."
         >
           <McpSetup origin={origin} />
+        </Section>
+
+        <Section
+          title="Before and after"
+          description="How an agent captures a pair with agent-browser and uploads it."
+        >
+          <CompareRecipe />
         </Section>
       </PageBody>
     </>

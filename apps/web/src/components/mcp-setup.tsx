@@ -13,7 +13,7 @@ import {
   ItemTitle,
 } from '#/components/ui/item'
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+export function CopyButton({ text, label }: { text: string; label: string }) {
   async function copy() {
     try {
       await navigator.clipboard.writeText(text)
