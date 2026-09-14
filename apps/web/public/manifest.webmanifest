@@ -6,6 +6,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "categories": ["developer tools", "utilities"],
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "shortcuts": [

@@ -331,6 +331,8 @@ function Segmented<T extends string>({
 }
 
 const stacked = 'max-h-[70svh] max-w-full rounded-md [grid-area:1/1]'
+// The drag is the gesture here, so a long press must not open the iOS save sheet.
+const swipeImage = `${stacked} [-webkit-touch-callout:none]`
 const fade = `${stacked} transition-opacity [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-in-out)] motion-reduce:transition-none`
 
 // The after slot can swap to the diff image, so the eye stays in one place.
@@ -438,12 +440,12 @@ function SwipePair({ sides }: { sides: Side[] }) {
           if (event.buttons) track(event)
         }}
       >
-        <img src={before.src} alt="Before" draggable={false} className={stacked} />
+        <img src={before.src} alt="Before" draggable={false} className={swipeImage} />
         <img
           src={after.src}
           alt="After"
           draggable={false}
-          className={stacked}
+          className={swipeImage}
           style={{ clipPath: `inset(0 0 0 ${position}%)` }}
         />
         <div className="pointer-events-none absolute top-2 left-2">

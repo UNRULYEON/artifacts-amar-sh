@@ -163,7 +163,7 @@ body {
     @apply border-border outline-ring/50;
   }
   html {
-    @apply font-sans;
+    @apply font-sans motion-safe:scroll-smooth;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
   }
