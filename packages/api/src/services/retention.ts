@@ -50,12 +50,21 @@ export class Retention extends Effect.Service<Retention>()('@artifacts/api/Reten
           result.artifacts += rows.length
           result.batches++
         }
+        // Tickets reference projects, so they go first. A ticket on a deleted
+        // project can no longer upload.
+        yield* db
+          .delete(uploadTicket)
+          .where(
+            or(
+              lt(uploadTicket.expiresAt, now),
+              sql`${uploadTicket.projectId} in (select ${project.id} from ${project} where ${project.deletedAt} is not null)`,
+            ),
+          )
         yield* db
           .delete(project)
           .where(
             sql`${project.deletedAt} is not null and not exists (select 1 from ${artifact} where ${artifact.projectId} = ${project.id})`,
           )
-        yield* db.delete(uploadTicket).where(lt(uploadTicket.expiresAt, now))
         yield* Effect.logInfo('sweep done', result)
         return result
       }).pipe(Effect.withSpan('Retention.sweep'))
