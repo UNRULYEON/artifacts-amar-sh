@@ -5,7 +5,8 @@ import { Cause, Effect } from 'effect'
 import * as z from 'zod'
 import type { ApiEnv } from '../env'
 import { BadRequest } from '../errors'
-import { MAX_UPLOAD_BYTES, MCP_INLINE_MAX_BYTES } from '../limits'
+import { guide, instructions, toolDescriptions, usage } from '../guide'
+import { MCP_INLINE_MAX_BYTES } from '../limits'
 import { getRuntime, type AppRuntime, type AppServices } from '../runtime'
 import { Artifacts } from '../services/artifacts'
 import { Auth, mcpResource } from '../services/auth'
@@ -104,70 +105,27 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
     { name: 'artifacts', version: '1.0.0' },
     {
       jsonSchemaValidator: validator,
-      instructions:
-        'Upload screenshots, videos, logs, and zipped HTML reports to artifacts.amar.sh and get a viewer URL back. Start with discover. Capture screenshots and videos with the agent-browser CLI (https://agent-browser.dev), not with other browser tools. For before and after pairs, follow https://agent-browser.dev/diffing and then call upload_comparison.',
+      instructions,
     },
   )
 
-  server.registerTool(
-    'discover',
-    { description: 'How uploads work, the limits, and the list of projects.' },
-    () =>
-      runTool(
-        runtime,
-        Effect.gen(function* () {
-          const projects = yield* Projects
-          return {
-            projects: (yield* projects.list(userId)).map((p) => ({ id: p.id, name: p.name })),
-            notes: [
-              'Tokens and this MCP session can upload to every project. An unknown project name is created.',
-              `Files up to ${MCP_INLINE_MAX_BYTES} bytes: call upload with contentBase64.`,
-              `Larger files up to ${MAX_UPLOAD_BYTES} bytes: call get_upload_url, then run the returned curl in a shell.`,
-              'The response url opens in a browser after GitHub login. Bundles (zip with index.html) open as a site.',
-              'Images and videos also return embedUrl: a link to the bytes that needs no login and lives as long as the artifact. Paste it as ![name](embedUrl) in a GitHub pull request to show the image inline. GitHub does not play external videos; the link still opens the file.',
-              'For a GitHub pull request, upload a GIF rather than a video: GitHub renders images from embedUrl inline and does not play external video.',
-              'Before and after: call upload_comparison with one or more pairs, or upload a zip whose entries are only before.<ext> and after.<ext>, at the root or one folder per pair. Each pair is both images or both videos; pairs may mix. They are shown side by side, and image pairs also as a swipe. An image pair may add diff.<ext>, the image from agent-browser diff screenshot, shown with an After/Diff switch, and diff.txt, the text from agent-browser diff snapshot, shown under the images.',
-              'Capture with agent-browser (https://agent-browser.dev), not with other browser tools. Read agent-browser skills get core --full first. Screenshots: agent-browser open <url>, wait for the result (wait --text, wait @ref, or wait --fn), then agent-browser screenshot <path.png>. Add --full for the whole page or a selector for one element. Use agent-browser set viewport <w> <h> 2 for sharp 2x images, or set device "iPhone 14" for mobile.',
-              'Videos: agent-browser record start <path.webm|path.mp4> [--fps 1-60], do the actions with small waits, then agent-browser record stop. Default is 30 fps and needs ffmpeg on PATH (check with agent-browser doctor). An old CLI without --fps records at a low rate; run agent-browser upgrade. Videos are usually larger than the inline limit, so use get_upload_url. For a GitHub pull request make a GIF: ffmpeg -i in.webm -vf "fps=20,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" out.gif',
-              'Before and after with agent-browser: follow https://agent-browser.dev/diffing and the steps in comparisonRecipe below. Use one named session (--session <name>) so cookies, viewport, and theme stay equal. Take the before capture, apply the change, take the after capture on the same route, run both diffs, then call upload_comparison with before, after, diff, and the snapshot diff text. For two deployments, agent-browser diff url <before-url> <after-url> --screenshot compares both in one command.',
-            ],
-            comparisonRecipe: {
-              steps: [
-                'export AGENT_BROWSER_SESSION=compare',
-                'agent-browser open <url> && agent-browser set viewport 1280 800 2 && agent-browser wait --text "<text on the page>"',
-                'agent-browser screenshot before.png && agent-browser snapshot > before.txt',
-                '<apply the change: deploy, toggle a flag, or edit the page>',
-                'agent-browser open <url> && agent-browser wait --text "<text on the page>"',
-                'agent-browser screenshot after.png',
-                'agent-browser diff screenshot --baseline before.png --output diff.png',
-                'agent-browser diff snapshot --baseline before.txt > diff.txt',
-                'Call upload_comparison: { project, name: "<change>", pairs: [{ label: "<page>", format: "png", beforeBase64: <base64 of before.png>, afterBase64: <base64 of after.png>, diffBase64: <base64 of diff.png>, snapshotDiff: <text of diff.txt> }] }',
-                'agent-browser close',
-              ],
-              largeFiles: [
-                'When a file is over the inline limit, build the zip yourself and use get_upload_url. Entries: <label>/before.<ext>, <label>/after.<ext>, and optionally <label>/diff.<ext> and <label>/diff.txt, nothing else. One pair can sit at the root without a folder.',
-                'zip -0 <change>.zip <page>/before.png <page>/after.png <page>/diff.png <page>/diff.txt',
-                'Then get_upload_url with name <change>.zip and run the returned curl.',
-              ],
-              formats: {
-                image: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
-                video: ['mp4', 'webm'],
-                diff: 'An image, only on an image pair. agent-browser writes PNG.',
-                snapshot:
-                  'diff.txt, plain text from agent-browser diff snapshot, only on an image pair.',
-              },
-            },
-            uploadTicketShape: `curl -X PUT --data-binary @<file> ${origin}/u/<ticket>`,
-          }
-        }),
-      ),
+  server.registerTool('discover', { description: toolDescriptions.discover }, () =>
+    runTool(
+      runtime,
+      Effect.gen(function* () {
+        const projects = yield* Projects
+        return {
+          projects: (yield* projects.list(userId)).map((p) => ({ id: p.id, name: p.name })),
+          ...usage(origin),
+        }
+      }),
+    ),
   )
 
   server.registerTool(
     'get_upload_url',
     {
-      description:
-        'Mint a one-use upload URL (10 minutes) for a file of any size up to 100MB. Returns the URL and a ready curl command.',
+      description: toolDescriptions.get_upload_url,
       inputSchema: z.object({
         project: z.string().describe('Project id or slug. Unknown slugs are created.'),
         name: z.string().describe('File name with extension, e.g. playwright-report.zip'),
@@ -193,8 +151,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
   server.registerTool(
     'upload',
     {
-      description:
-        'Upload a small file (up to 2MB) inline. Returns the viewer URL, plus embedUrl for images and videos.',
+      description: toolDescriptions.upload,
       inputSchema: z.object({
         project: z.string().describe('Project id or slug. Unknown slugs are created.'),
         name: z.string().describe('File name with extension, e.g. screenshot.png'),
@@ -215,8 +172,7 @@ function makeServer(runtime: AppRuntime, userId: string, origin: string) {
   server.registerTool(
     'upload_comparison',
     {
-      description:
-        'Upload one or more before and after pairs (screenshots or videos, up to 2MB per file), shown side by side or as a swipe. An image pair may add a diff image that marks the changed pixels, shown with an After/Diff switch, and a snapshot diff, the text from agent-browser diff snapshot, shown under the images. Returns the viewer URL. Capture the files with agent-browser as described at https://agent-browser.dev/diffing. For larger files, zip <label>/before.<ext>, <label>/after.<ext>, and optionally <label>/diff.png and <label>/diff.txt yourself and use get_upload_url.',
+      description: toolDescriptions.upload_comparison,
       inputSchema: z.object({
         project: z.string().describe('Project id or slug. Unknown slugs are created.'),
         name: z
@@ -329,5 +285,32 @@ export async function mcpRoute(env: ApiEnv, request: Request): Promise<Response>
       return createMcpHandler(() => makeServer(runtime, userId, origin)).fetch(req)
     },
   )
-  return protectedHandler(request)
+  return withGuide(await protectedHandler(request), origin)
+}
+
+// Clients start OAuth from the 401 headers. The body adds the guide for agents that read it.
+export async function withGuide(response: Response, origin: string) {
+  if (response.status !== 401 || !response.headers.get('content-type')?.includes('json')) {
+    return response
+  }
+  const body = (await response.json()) as { error: object }
+  body.error = {
+    ...body.error,
+    message:
+      'Not signed in. Read error.data.guide to upload with an API token or connect over MCP.',
+    data: { guide: guide(origin) },
+  }
+  const headers = new Headers(response.headers)
+  headers.delete('content-length')
+  return Response.json(body, { status: 401, headers })
+}
+
+// GET without an event stream is a person or an agent that fetches the URL.
+export function mcpGet(request: Request) {
+  if (request.headers.get('accept')?.includes('text/event-stream')) {
+    return new Response('Method not allowed.', { status: 405, headers: { allow: 'POST' } })
+  }
+  return new Response(guide(new URL(request.url).origin), {
+    headers: { 'content-type': 'text/markdown; charset=utf-8' },
+  })
 }

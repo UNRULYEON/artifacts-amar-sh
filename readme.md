@@ -118,6 +118,8 @@ Authorization: Bearer art_...
 Content-Length: <bytes>
 ```
 
+`GET /api/help` explains this API to agents as Markdown: the upload `curl`, upload tickets, captures with agent-browser, and a before and after recipe. It needs no auth. With `Authorization: Bearer art_...` it also says if the token is valid and lists its projects. The text lives in `packages/api/src/guide.ts`.
+
 The raw file is the body. No multipart. The Worker streams it to R2, then writes the metadata to D1 and answers `201` with `{ id, url, expiresAt, embedUrl? }`. The `url` is the viewer link on the same host. Images and videos also get `embedUrl`: a link to the bytes under `/r/` that needs no login and stays valid until the artifact expires. Paste it as `![name](embedUrl)` in a GitHub pull request to show the image inline. GitHub does not play external videos; the link still opens the file. The viewer page has an "Embed link" button that copies the same link.
 
 - `project` is a project id or a slug. An unknown slug creates the project.
@@ -182,12 +184,13 @@ curl "http://localhost:3000/cdn-cgi/handler/scheduled?cron=*/15+*+*+*+*"
 
 ## MCP
 
-Agents connect to `https://artifacts.amar.sh/mcp` (streamable HTTP, `POST` only) and sign in once with OAuth. This app is the OAuth server: Better Auth with the `jwt`, `mcp`, and `cimd` plugins. Nothing to configure in a client beyond the URL.
+Agents connect to `https://artifacts.amar.sh/mcp` (streamable HTTP over `POST`) and sign in once with OAuth. This app is the OAuth server: Better Auth with the `jwt`, `mcp`, and `cimd` plugins. Nothing to configure in a client beyond the URL.
 
 - Discovery: `/.well-known/oauth-protected-resource/mcp` names the authorization server `https://artifacts.amar.sh/api/auth`, whose metadata lives at `/.well-known/oauth-authorization-server/api/auth`. JWKS is `/api/auth/jwks`.
 - Client registration is CIMD only: the client's `client_id` is the HTTPS URL of its metadata document. Dynamic Client Registration stays off. `MCP_CLIENT_ORIGINS` (optional var, comma-separated origins) restricts which metadata hosts may register; unset allows any HTTPS document.
 - Flow: the client is sent to `/login`, GitHub signs you in, `/consent` asks once, and the client gets a token bound to the `/mcp` resource. Tokens act as you across every project.
 - Tools: `discover` (how it works, limits, projects), `get_upload_url` (a ten minute one-use `PUT` URL plus a ready `curl`, for files up to 100MB), `upload` (inline base64, up to 2MB), and `upload_comparison` (one or more before and after pairs, inline base64, up to 2MB per file, packed into a zip by the server). Uploads from MCP show as `MCP` in the dashboard. The server instructions and `discover` tell agents to capture with [agent-browser](https://agent-browser.dev) and to follow [agent-browser.dev/diffing](https://agent-browser.dev/diffing) for before and after pairs.
+- Without a sign-in, `/mcp` explains the service. A `POST` gets the usual `401` with `WWW-Authenticate`, and the JSON-RPC error carries the guide in `error.data.guide`. A plain `GET` (no `text/event-stream`) returns the same guide as Markdown. The guide puts the API token `curl` first, then MCP, the tools, and the capture notes. Its text lives in `packages/api/src/guide.ts`, which `discover` and the tool descriptions also use.
 - CORS is open on `/mcp`, `/.well-known/*`, `/api/auth/oauth2/*`, and `/api/auth/jwks` for browser-based clients.
 
 ### Connect a client

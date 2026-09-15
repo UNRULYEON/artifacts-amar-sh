@@ -9,8 +9,9 @@ import { authHandler, me } from './routes/auth'
 import { deleteArtifact, listArtifacts } from './routes/artifacts'
 import { serveBytes } from './routes/bytes'
 import { health } from './routes/health'
+import { help } from './routes/help'
 import { createProject, deleteProject, listProjects, updateProject } from './routes/projects'
-import { mcpRoute } from './routes/mcp'
+import { mcpGet, mcpRoute } from './routes/mcp'
 import { getSettings, updateSettings } from './routes/settings'
 import { createToken, listTokens, revokeToken } from './routes/tokens'
 import { createUploadTicket, upload, uploadWithTicket } from './routes/upload'
@@ -65,11 +66,12 @@ export function createApi() {
   app.use('/api/auth/jwks', open)
 
   app.get('/api/health', (c) => run(c.env, health))
+  app.get('/api/help', (c) => run(c.env, help(c.req.raw)))
   app.on(['GET', 'POST'], '/api/auth/*', (c) => run(c.env, authHandler(c.req.raw)))
   app.on(['GET', 'HEAD'], '/.well-known/*', (c) => run(c.env, authHandler(c.req.raw)))
   app.post('/mcp', (c) => mcpRoute(c.env, c.req.raw))
-  app.on(
-    ['GET', 'DELETE'],
+  app.get('/mcp', (c) => mcpGet(c.req.raw))
+  app.delete(
     '/mcp',
     () => new Response('Method not allowed.', { status: 405, headers: { allow: 'POST' } }),
   )
