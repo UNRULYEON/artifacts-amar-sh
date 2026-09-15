@@ -131,7 +131,7 @@ function Viewer() {
           title={artifact.name}
           // oxlint-disable-next-line react/iframe-missing-sandbox -- the /r/ response CSP sets the real sandbox
           sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"
-          className="block h-[calc(100svh-var(--header-height))] w-full bg-white"
+          className="block h-[calc(100svh-var(--header-height))] w-full"
         />
       ) : (
         <PageBody width="wide">
@@ -194,7 +194,7 @@ function Preview({ artifact, src }: { artifact: ArtifactView; src: string }) {
           title={artifact.name}
           // oxlint-disable-next-line react/iframe-missing-sandbox -- the /r/ response CSP sets the real sandbox
           sandbox="allow-scripts allow-same-origin"
-          className="h-[80svh] w-full rounded-lg bg-white ring-1 ring-foreground/10"
+          className="h-[80svh] w-full rounded-lg ring-1 ring-foreground/10"
         />
       )
     case 'compare':
