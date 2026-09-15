@@ -1,5 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Copy01Icon, Key01Icon, PlusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { useRouter } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import type { Token } from '@artifacts/api'
@@ -52,15 +53,23 @@ type Created = Token & { token: string }
 export function CreateTokenButton() {
   const [open, setOpen] = useState(false)
   const [created, setCreated] = useState<Created | null>(null)
+  const router = useRouter()
   const { mutate, error, busy } = useMutation()
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const name = String(new FormData(event.currentTarget).get('name'))
     let result: Created | null = null
-    const ok = await mutate(async () => {
-      result = await api<Created>('/api/tokens', { method: 'POST', body: JSON.stringify({ name }) })
-    })
+    // Reload on close. The first token replaces the empty state, which unmounts this dialog.
+    const ok = await mutate(
+      async () => {
+        result = await api<Created>('/api/tokens', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        })
+      },
+      { reload: false },
+    )
     if (ok && result) {
       setCreated(result)
       toast.success(`Token "${name}" created.`)
@@ -69,7 +78,9 @@ export function CreateTokenButton() {
 
   function onOpenChange(next: boolean) {
     setOpen(next)
-    if (!next) setCreated(null)
+    if (next || !created) return
+    setCreated(null)
+    void router.invalidate()
   }
 
   return (
