@@ -4,6 +4,7 @@ import {
   Projects,
   Signer,
   comparePairs,
+  contentOrigin,
   embedUrl,
   getRuntime,
 } from '@artifacts/api'
@@ -48,7 +49,7 @@ export function readArtifact(request: Request, id: string): Promise<ArtifactView
           name: project.name,
           displayName: project.displayName,
         },
-        base: `/r/${id}/${token}`,
+        base: `${yield* contentOrigin('')}/r/${id}/${token}`,
         files,
         hasIndex: files.some((f) => f.path === 'index.html'),
         compare: artifact.kind === 'compare' ? comparePairs(entries) : null,
