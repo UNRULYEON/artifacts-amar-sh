@@ -129,7 +129,8 @@ function Viewer() {
         <iframe
           src={report}
           title={artifact.name}
-          sandbox="allow-scripts allow-popups allow-downloads allow-forms"
+          // oxlint-disable-next-line react/iframe-missing-sandbox -- the /r/ response CSP sets the real sandbox
+          sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"
           className="block h-[calc(100svh-var(--header-height))] w-full bg-white"
         />
       ) : (
@@ -191,7 +192,8 @@ function Preview({ artifact, src }: { artifact: ArtifactView; src: string }) {
         <iframe
           src={src}
           title={artifact.name}
-          sandbox="allow-scripts"
+          // oxlint-disable-next-line react/iframe-missing-sandbox -- the /r/ response CSP sets the real sandbox
+          sandbox="allow-scripts allow-same-origin"
           className="h-[80svh] w-full rounded-lg bg-white ring-1 ring-foreground/10"
         />
       )

@@ -2,6 +2,7 @@ import { Cause, Effect } from 'effect'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { ApiEnv } from './env'
+import { isContentOrigin } from './content'
 import { run } from './http'
 import { getRuntime } from './runtime'
 import { Retention, type SweepResult } from './services/retention'
@@ -31,6 +32,7 @@ export { Tickets } from './services/tickets'
 export { Bindings } from './services/bindings'
 export { comparePairs, type ComparePair } from './zip'
 export { embedUrl } from './embed'
+export { contentOrigin } from './content'
 export * from './errors'
 
 // Cron entry. Errors are logged, never thrown, so the trigger stays healthy.
@@ -46,6 +48,14 @@ export function sweep(env: ApiEnv): Promise<SweepResult | null> {
 
 export function createApi() {
   const app = new Hono<{ Bindings: ApiEnv }>()
+
+  // The content origin serves artifact bytes and nothing else.
+  app.use('*', async (c, next) => {
+    if (isContentOrigin(c.req.raw, c.env.CONTENT_URL) && !c.req.path.startsWith('/r/')) {
+      return c.text('Not found.', 404)
+    }
+    await next()
+  })
 
   // Browser-based MCP clients need CORS on discovery, the OAuth endpoints, and the MCP route.
   const open = cors({

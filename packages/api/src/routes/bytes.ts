@@ -1,4 +1,5 @@
-import { Effect } from 'effect'
+import { Config, Effect } from 'effect'
+import { contentOrigin } from '../content'
 import type { Route } from '../http'
 import { contentTypeFor } from '../mime'
 import { contentRange, parseRange, type ByteRange } from '../range'
@@ -8,7 +9,8 @@ import { Storage } from '../services/storage'
 import { LOCAL_HEADER_MIN, localHeaderSize } from '../zip'
 
 // Serves artifact bytes under the signed prefix. No cookie is read here, and
-// every response is sandboxed so report scripts run in an opaque origin.
+// every response is sandboxed. On the content origin scripts keep that origin,
+// so reports can use storage. On the app origin they run in an opaque origin.
 
 function page(status: number, title: string, body: string) {
   return new Response(
@@ -28,16 +30,25 @@ export function bundlePath(root: string, path: string) {
   return root === '' ? path : `${root}/${path}`
 }
 
-function baseHeaders(name: string, download: boolean) {
+interface Served {
+  download: boolean
+  // Set only on the content origin, for CORS and links back to the app.
+  app: string | null
+}
+
+function baseHeaders(name: string, served: Served) {
   const type = contentTypeFor(name)
   const headers = new Headers({
-    'content-security-policy': 'sandbox allow-scripts',
+    'content-security-policy': served.app
+      ? 'sandbox allow-scripts allow-same-origin'
+      : 'sandbox allow-scripts',
     'x-content-type-options': 'nosniff',
     'cache-control': 'private, max-age=300',
     'accept-ranges': 'bytes',
     'content-type': type ?? 'application/octet-stream',
   })
-  if (download || type === null) {
+  if (served.app) headers.set('access-control-allow-origin', served.app)
+  if (served.download || type === null) {
     const file = name.slice(name.lastIndexOf('/') + 1).replaceAll('"', '')
     headers.set('content-disposition', `attachment; filename="${file}"`)
   }
@@ -51,12 +62,14 @@ function unsatisfiable(size: number, headers: Headers) {
 
 export function serveBytes(request: Request, id: string, token: string, rawPath: string): Route {
   return Effect.gen(function* () {
+    const origin = new URL(request.url).origin
+    const app = (yield* contentOrigin('')) === origin ? yield* Config.string('APP_URL') : null
     const signer = yield* Signer
     if (!(yield* signer.verify(id, token))) {
       return page(
         403,
         'Link expired',
-        `<a href="/a/${id}">Open the artifact again</a> to get a fresh link.`,
+        `<a href="${app ?? ''}/a/${id}">Open the artifact again</a> to get a fresh link.`,
       )
     }
     const artifacts = yield* Artifacts
@@ -66,24 +79,24 @@ export function serveBytes(request: Request, id: string, token: string, rawPath:
     if (!row) return page(404, 'Not found', 'This artifact is gone.')
 
     const path = decodeURIComponent(rawPath)
-    const download = new URL(request.url).searchParams.has('download')
+    const served = { download: new URL(request.url).searchParams.has('download'), app }
     const range = request.method === 'GET' ? request.headers.get('range') : null
 
     if (row.kind === 'bundle' || row.kind === 'compare') {
       const entry = yield* artifacts.file(id, bundlePath(row.rootPath, path))
-      if (entry) return yield* serveEntry(row, entry, path, range, download)
+      if (entry) return yield* serveEntry(row, entry, path, range, served)
       if (path !== row.name) return page(404, 'Not found', 'No such file in this bundle.')
     } else if (path !== row.name) {
       return page(404, 'Not found', 'No such file.')
     }
-    return yield* serveWhole(row, range, download)
+    return yield* serveWhole(row, range, served)
   }).pipe(Effect.withSpan('serveBytes'))
 }
 
-function serveWhole(row: ArtifactRow, rangeHeader: string | null, download: boolean) {
+function serveWhole(row: ArtifactRow, rangeHeader: string | null, served: Served) {
   return Effect.gen(function* () {
     const storage = yield* Storage
-    const headers = baseHeaders(row.name, download)
+    const headers = baseHeaders(row.name, served)
     const range = parseRange(rangeHeader, row.size)
     if (range === 'unsatisfiable') return unsatisfiable(row.size, headers)
     const object = yield* storage.get(row.r2Key, range ? { range } : undefined)
@@ -97,11 +110,11 @@ function serveEntry(
   entry: ArtifactFileRow,
   path: string,
   rangeHeader: string | null,
-  download: boolean,
+  served: Served,
 ) {
   return Effect.gen(function* () {
     const storage = yield* Storage
-    const headers = baseHeaders(path, download)
+    const headers = baseHeaders(path, served)
     const header = yield* storage.get(row.r2Key, {
       range: { offset: entry.offset, length: LOCAL_HEADER_MIN },
     })

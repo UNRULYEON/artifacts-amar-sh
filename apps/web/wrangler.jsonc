@@ -19,6 +19,8 @@
   },
   "vars": {
     "APP_URL": "https://artifacts.amar.sh",
+    // Artifact bytes. Unset in local dev, so bytes stay on the app origin.
+    "CONTENT_URL": "https://content.artifacts.amar.sh",
     // Overridden on deploy with --var GIT_SHA:<commit>.
     "GIT_SHA": "dev",
   },
@@ -39,5 +41,8 @@
   "triggers": {
     "crons": ["*/15 * * * *"],
   },
-  "routes": [{ "pattern": "artifacts.amar.sh", "custom_domain": true }],
+  "routes": [
+    { "pattern": "artifacts.amar.sh", "custom_domain": true },
+    { "pattern": "content.artifacts.amar.sh", "custom_domain": true },
+  ],
 }
