@@ -166,7 +166,7 @@ Two layers. `GET /a/:id` is the gate: it needs the session cookie, else it sends
 
 `GET /r/:id/<exp>.<sig>/<path>` serves the bytes. No cookie is read. `sig` is an HMAC over `id.exp` with a key derived from `BETTER_AUTH_SECRET`, so there is no second secret to set. Viewer links live an hour. Embed links for images and videos sign `id.exp.embed` with `exp` at the artifact's expiry, so a viewer link cannot be stretched and an embed link dies with the artifact. An expired or bad link answers `403` with a link back to `/a/:id`, which re-signs it.
 
-Every `/r/*` response carries `Content-Security-Policy: sandbox allow-scripts` and `nosniff`, so report scripts run in an opaque origin and cannot reach cookies, the dashboard, or the API. In that origin `localStorage` and `sessionStorage` throw, so a full `200` HTML response gets a small script at the start of `<head>` that puts an in-memory store in their place. Reports such as Playwright's then load, and their stored state lasts for one page load. `Range` requests get `206` on single files and on stored zip entries. Deflated entries are inflated with `DecompressionStream` on the fly. Paths inside a bundle are relative to `rootPath`. Add `?download` for an attachment disposition.
+Every `/r/*` response carries `Content-Security-Policy: sandbox allow-scripts` and `nosniff`, so report scripts run in an opaque origin and cannot reach cookies, the dashboard, or the API. `Range` requests get `206` on single files and on stored zip entries. Deflated entries are inflated with `DecompressionStream` on the fly. Paths inside a bundle are relative to `rootPath`. Add `?download` for an attachment disposition.
 
 ## Retention and settings
 
