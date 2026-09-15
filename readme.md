@@ -172,7 +172,7 @@ Viewer and embed links point to `CONTENT_URL` (`https://content.artifacts.amar.s
 
 Every upload gets `expiresAt` from the request `ttl`, else the project TTL, else the user default, else 30 days, clamped to 60 seconds to 90 days. Deleting from the dashboard only sets `deletedAt`.
 
-The cron (`*/15 * * * *`, see `wrangler.jsonc`) runs `sweep`: it picks artifacts that are expired or soft-deleted in batches of 100, deletes the R2 objects by key, then the `artifact_file` rows, then the `artifact` rows, up to 20 batches per run. It also drops soft-deleted projects that have no artifacts left and expired upload tickets. The run is logged as `sweep done` with counts. A failure is logged and never thrown.
+The cron (`*/15 * * * *`, see `wrangler.jsonc`) runs `sweep`: it picks artifacts that are expired or soft-deleted in batches of 100, deletes the R2 objects by key, then the `artifact_file` rows, then the `artifact` rows, up to 20 batches per run. Then it drops upload tickets that are expired or belong to a soft-deleted project, and after them the soft-deleted projects that have no artifacts left. Tickets reference projects, so this order matters. The run is logged as `sweep done` with counts. A failure is logged and never thrown.
 
 Locally, trigger it with the dev server running:
 
