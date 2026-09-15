@@ -24,28 +24,6 @@ function page(status: number, title: string, body: string) {
   )
 }
 
-// The sandbox makes localStorage and sessionStorage throw, which breaks reports
-// such as Playwright's. Pages get an in-memory store only where access throws.
-const storageShim = `<script>(function(){function m(){var d=new Map();return{get length(){return d.size},key:function(i){var k=Array.from(d.keys())[i];return k===undefined?null:k},getItem:function(k){k=String(k);return d.has(k)?d.get(k):null},setItem:function(k,v){d.set(String(k),String(v))},removeItem:function(k){d.delete(String(k))},clear:function(){d.clear()}}}['localStorage','sessionStorage'].forEach(function(n){try{window[n]}catch(e){Object.defineProperty(window,n,{value:m(),configurable:true})}})})()</script>`
-
-export function withStorageShim(response: Response) {
-  const html = response.headers.get('content-type')?.startsWith('text/html')
-  if (response.status !== 200 || !html || response.headers.has('content-disposition')) {
-    return response
-  }
-  response.headers.delete('content-length')
-  let done = false
-  return new HTMLRewriter()
-    .on('head', {
-      element(head) {
-        if (done) return
-        done = true
-        head.prepend(storageShim, { html: true })
-      },
-    })
-    .transform(response)
-}
-
 export function bundlePath(root: string, path: string) {
   return root === '' ? path : `${root}/${path}`
 }
@@ -93,12 +71,12 @@ export function serveBytes(request: Request, id: string, token: string, rawPath:
 
     if (row.kind === 'bundle' || row.kind === 'compare') {
       const entry = yield* artifacts.file(id, bundlePath(row.rootPath, path))
-      if (entry) return withStorageShim(yield* serveEntry(row, entry, path, range, download))
+      if (entry) return yield* serveEntry(row, entry, path, range, download)
       if (path !== row.name) return page(404, 'Not found', 'No such file in this bundle.')
     } else if (path !== row.name) {
       return page(404, 'Not found', 'No such file.')
     }
-    return withStorageShim(yield* serveWhole(row, range, download))
+    return yield* serveWhole(row, range, download)
   }).pipe(Effect.withSpan('serveBytes'))
 }
 
