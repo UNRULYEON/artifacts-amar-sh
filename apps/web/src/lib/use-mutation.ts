@@ -7,12 +7,12 @@ export function useMutation() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function mutate(run: () => Promise<unknown>) {
+  async function mutate(run: () => Promise<unknown>, { reload = true } = {}) {
     setBusy(true)
     setError(null)
     try {
       await run()
-      await router.invalidate()
+      if (reload) await router.invalidate()
       return true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
