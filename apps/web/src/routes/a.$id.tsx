@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppHeader, PageBody, type BackLink } from '#/components/app-shell'
 import { IconSwap } from '#/components/icon-swap'
+import { ImageLightbox, LightboxTrigger } from '#/components/image-lightbox'
 import { Tip } from '#/components/tip'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -174,9 +175,13 @@ function Preview({ artifact, src }: { artifact: ArtifactView; src: string }) {
   switch (artifact.kind) {
     case 'image':
       return (
-        <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
-          <img src={src} alt={artifact.name} className="max-h-[80svh] max-w-full rounded-md" />
-        </div>
+        <ImageLightbox items={[{ src, alt: artifact.name }]}>
+          <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+            <LightboxTrigger index={0} aria-label="Open full screen" className={zoomTrigger}>
+              <img src={src} alt={artifact.name} className="max-h-[80svh] max-w-full rounded-md" />
+            </LightboxTrigger>
+          </div>
+        </ImageLightbox>
       )
     case 'video':
       return (
@@ -335,60 +340,96 @@ function Segmented<T extends string>({
 const stacked = 'max-h-[70svh] max-w-full rounded-md [grid-area:1/1]'
 // The drag is the gesture here, so a long press must not open the iOS save sheet.
 const swipeImage = `${stacked} [-webkit-touch-callout:none]`
-const fade = `${stacked} transition-opacity [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-in-out)] motion-reduce:transition-none`
+const zoomTrigger =
+  'block cursor-zoom-in rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
+const fade = `${zoomTrigger} [grid-area:1/1] transition-opacity [transition-duration:var(--duration-fast)] [transition-timing-function:var(--ease-in-out)] motion-reduce:transition-none`
 
 // The after slot can swap to the diff image, so the eye stays in one place.
+// The lightbox holds before, after, and diff; a swipe to the diff in the
+// lightbox also swaps the slot, so the close morph lands on a visible image.
 function ImagePair({ sides, diff }: { sides: Side[]; diff: string | null }) {
   const [showDiff, setShowDiff] = useState(false)
+  const items = [
+    ...sides.map((side) => ({ src: side.src, alt: side.label })),
+    ...(diff ? [{ src: diff, alt: 'Diff' }] : []),
+  ]
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {sides.map((side) => {
-        const swappable = diff !== null && side.label === 'After'
-        return (
-          <figure key={side.label} className="flex min-w-0 flex-col gap-2">
-            <figcaption className="flex h-7 items-center">
-              {swappable ? (
-                <Segmented
-                  label="After view"
-                  value={showDiff ? 'diff' : 'after'}
-                  onChange={(v) => setShowDiff(v === 'diff')}
-                  options={[
-                    { value: 'after', label: 'After' },
-                    { value: 'diff', label: 'Diff', tip: 'Changed pixels in red' },
-                  ]}
-                />
-              ) : (
-                <SideLabel label={side.label} />
-              )}
-            </figcaption>
-            <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
-              {swappable ? (
-                <div className="grid">
-                  <img
-                    src={side.src}
-                    alt="After"
-                    className={fade}
-                    style={{ opacity: showDiff ? 0 : 1 }}
+    <ImageLightbox
+      items={items}
+      onIndexChange={(index) => {
+        if (index > 0) setShowDiff(index === 2)
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        {sides.map((side, index) => {
+          const swappable = diff !== null && side.label === 'After'
+          return (
+            <figure key={side.label} className="flex min-w-0 flex-col gap-2">
+              <figcaption className="flex h-7 items-center">
+                {swappable ? (
+                  <Segmented
+                    label="After view"
+                    value={showDiff ? 'diff' : 'after'}
+                    onChange={(v) => setShowDiff(v === 'diff')}
+                    options={[
+                      { value: 'after', label: 'After' },
+                      { value: 'diff', label: 'Diff', tip: 'Changed pixels in red' },
+                    ]}
                   />
-                  <img
-                    src={diff}
-                    alt="Diff"
-                    className={fade}
-                    style={{ opacity: showDiff ? 1 : 0 }}
-                  />
-                </div>
-              ) : (
-                <img
-                  src={side.src}
-                  alt={side.label}
-                  className="max-h-[70svh] max-w-full rounded-md"
-                />
-              )}
-            </div>
-          </figure>
-        )
-      })}
-    </div>
+                ) : (
+                  <SideLabel label={side.label} />
+                )}
+              </figcaption>
+              <div className="flex justify-center rounded-lg bg-muted/50 p-2 ring-1 ring-foreground/10">
+                {swappable ? (
+                  <div className="grid">
+                    <SwapTrigger index={1} shown={!showDiff} src={side.src} alt="After" />
+                    <SwapTrigger index={2} shown={showDiff} src={diff} alt="Diff" />
+                  </div>
+                ) : (
+                  <LightboxTrigger
+                    index={index}
+                    aria-label={`Open ${side.label} full screen`}
+                    className={zoomTrigger}
+                  >
+                    <img
+                      src={side.src}
+                      alt={side.label}
+                      className="max-h-[70svh] max-w-full rounded-md"
+                    />
+                  </LightboxTrigger>
+                )}
+              </div>
+            </figure>
+          )
+        })}
+      </div>
+    </ImageLightbox>
+  )
+}
+
+function SwapTrigger({
+  index,
+  shown,
+  src,
+  alt,
+}: {
+  index: number
+  shown: boolean
+  src: string
+  alt: string
+}) {
+  return (
+    <LightboxTrigger
+      index={index}
+      aria-label={`Open ${alt} full screen`}
+      aria-hidden={!shown}
+      tabIndex={shown ? undefined : -1}
+      className={cn(fade, !shown && 'pointer-events-none')}
+      style={{ opacity: shown ? 1 : 0 }}
+    >
+      <img src={src} alt={alt} className="max-h-[70svh] max-w-full rounded-md" />
+    </LightboxTrigger>
   )
 }
 
